@@ -1,0 +1,62 @@
+---
+title: "Memory and Context"
+description: "How Rabit combines durable memory, wallet-linked identity, and request-scoped controls so the same agent can behave safely and personally."
+---
+
+Rabit is designed to feel like a long-lived assistant, not a stateless endpoint.
+
+That requires two layers:
+
+| Layer type | What it does |
+| --- | --- |
+| memory | persists useful information over time |
+| request context | changes the behavior of the current interaction |
+
+## Why this matters
+
+In trading, the same answer is not correct for every user or every moment.
+
+The backend needs to know:
+
+- who the user is
+- what the current market focus is
+- whether execution is allowed right now
+- what durable memory should influence the response
+
+## The two layers Rabit combines
+
+| Layer | What it stores | Why it matters |
+| --- | --- | --- |
+| Memory | durable user preferences and structured trade debriefs | the agent can remember useful information across sessions |
+| Request context | market scope, execution gates, and current request state | the agent can behave appropriately for the current screen or action |
+
+## What Rabit supports today
+
+| Current capability | Why it matters |
+| --- | --- |
+| Mem0-backed long-term user memory | the assistant can recall durable user state |
+| wallet-authenticated user identity | protected features stay tied to verified ownership |
+| frontend-selected market context | the response can follow the active asset or market scope |
+| frontend-selected Backpack execution gate | the frontend can control whether Backpack execution is in play |
+| frontend-selected Drift execution gate | the frontend can scope Drift execution behavior per request |
+| structured trade debrief persistence | learning and review stay more durable than chat text alone |
+
+## Why this feels different in product terms
+
+This is one of the reasons Rabit can behave more like a guided assistant than a generic LLM wrapper.
+
+It can:
+
+| Product behavior | Why it feels better |
+| --- | --- |
+| remember preferences | the user does not need to restate everything |
+| adapt to the current asset or market view | the answer matches the screen and task better |
+| avoid assuming execution is allowed when it is not | safer behavior under real trading conditions |
+| preserve structured learning through trade debriefs | the system can improve recall over time |
+
+## Read this with
+
+- [Mem0 Integration](/integrations/mem0)
+- [Data Layer](/architecture/data-layer)
+- [Market Context](/agents/context/market-context)
+- [Exchange Execution](../execution)

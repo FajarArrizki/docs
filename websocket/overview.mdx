@@ -1,0 +1,91 @@
+---
+title: "WebSocket Overview"
+description: "How Rabit ingests live market data, normalizes price updates, and turns exchange streams into product-ready state."
+---
+
+Rabit needs more than static REST responses. It needs a live market pulse.
+
+This section explains how real-time market data enters the backend, how prices are normalized, and how the rest of the product consumes that state.
+
+## Why this layer exists
+
+If Rabit wants to help users react to changing conditions, it cannot rely only on one-off lookups.
+
+It needs a live path for:
+
+| Need | Why it matters |
+| --- | --- |
+| price movement | keeps market views current |
+| OHLC updates | supports charting and technical workflows |
+| monitoring | powers alert-style product behavior |
+| frontend updates | supports live product surfaces |
+| agent context | gives the assistant timing awareness |
+
+## The live data pipeline
+
+```mermaid
+flowchart TD
+    A[Exchange WebSocket or OHLC source] --> B[Client in ws/backpack, ws/drift, or ws/binance]
+    B --> C[Source service]
+    C --> D[Shared market handler]
+    D --> E[Normalized price and OHLC state]
+    E --> F[REST APIs]
+    E --> G[WebSocket broadcast route]
+    E --> H[Price monitor]
+    E --> I[Agent and product consumers]
+```
+
+## How Rabit gets a price
+
+At a high level, price data follows the same path regardless of source:
+
+1. a source client receives a raw payload from Backpack, Drift, or Binance
+2. the source service forwards that event into the shared market handler
+3. the handler normalizes it into a common internal structure such as `PriceUpdate` or `OHLCData`
+4. the normalized state becomes available to:
+   - asset APIs
+   - the `/api/ws/prices` broadcast path
+   - monitoring and alert logic
+   - agent-facing product features
+
+## Shared responsibilities in this layer
+
+| Responsibility | What it means in practice |
+| --- | --- |
+| source subscription | connect to exchange or data provider feeds |
+| normalization | convert provider-specific payloads into shared internal models |
+| state retention | keep the latest price or OHLC state available in memory and storage |
+| distribution | expose the normalized data to APIs, broadcasts, and services |
+| recovery | log failures, handle invalid messages, and keep the service lifecycle observable |
+
+## Error and recovery model
+
+This layer is designed around source-specific clients plus shared consumers.
+
+From the code path, the current handling model includes:
+
+| Failure type | Current behavior |
+| --- | --- |
+| connection failure | source client logs the failure and the service start path reports the error |
+| invalid payload or JSON | the client logs the bad message instead of crashing the whole backend |
+| callback failure | source clients catch callback errors so one consumer does not break all updates |
+| subscription failure for one symbol | the service logs the error and continues processing other symbols |
+| monitor loop failure | the monitor logs the error and retries after a delay |
+
+This is not a full fault-tolerant event platform yet, but it is enough to support a practical real-time market layer with observable failure paths.
+
+## Current sources
+
+| Source | Main role in Rabit |
+| --- | --- |
+| Backpack | live price and OHLC-oriented market data |
+| Drift | live perp-oriented market context and price awareness |
+| Binance | historical and chart-oriented OHLC workflows |
+
+## Read this with
+
+- [Data Sources](./data-sources)
+- [Backpack WebSocket](./backpack)
+- [Drift WebSocket](./drift)
+- [Binance Market Data](./binance)
+

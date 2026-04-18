@@ -1,55 +1,79 @@
-# Mintlify Starter Kit
+# Rabit Docs
 
-Use the starter kit to get your docs deployed and ready to customize.
+This Mintlify workspace lives inside the Rabit backend repository and is used to preview and publish product documentation.
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+## Run locally
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
+### Preview the docs site
 
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## AI-assisted writing
-
-Set up your AI coding tool to work with Mintlify:
+Install the Mintlify CLI:
 
 ```bash
-npx skills add https://mintlify.com/docs
-```
-
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
-
-See the [AI tools guides](/ai-tools) for tool-specific setup.
-
-## Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
-
-```
 npm i -g mint
 ```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+From the `.doch` directory, start the local docs preview:
 
-```
+```bash
 mint dev
 ```
 
-View your local preview at `http://localhost:3000`.
+The docs preview is available at:
 
-## Publishing changes
+- `http://localhost:3000`
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+### Run the Rabit backend locally
 
-## Need help?
+From the repository root:
 
-### Troubleshooting
+1. Create and activate a virtual environment
+2. Install backend dependencies
+3. Copy `.env.example` to `.env`
+4. Start the API server
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
+Example:
 
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+```bash
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+python main.py
+```
+
+Optional Drift read-only dependencies:
+
+```bash
+pip install -r requirements-drift-readonly.txt
+```
+
+The backend runs at:
+
+- `http://localhost:8000`
+
+Useful local URLs:
+
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+- Health: `http://localhost:8000/api/health`
+
+## Typical local workflow
+
+Use two terminals:
+
+1. backend API from the repo root
+2. Mintlify docs preview from `.doch`
+
+That gives you:
+
+- backend on `:8000`
+- docs on `:3000`
+
+## Troubleshooting
+
+- If `mint dev` fails, run `mint update`
+- If a docs page 404s, make sure you are inside `.doch` where `docs.json` exists
+- If the backend fails to start, review `.env` values for:
+  - `ANTHROPIC_API_KEY` or OpenRouter settings
+  - `AUTH_JWT_SECRET`
+  - `DRIFT_RPC_URL`
+  - `BACKPACK_API_URL`

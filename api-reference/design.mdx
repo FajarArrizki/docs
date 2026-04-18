@@ -1,0 +1,102 @@
+---
+title: "API Design"
+description: "Purpose, grouping logic, and design principles behind the Rabit backend API"
+---
+
+## Design goals
+
+The API is designed to support a trading assistant product, not just a generic backend.
+
+The main goals are:
+
+- keep frontend integration predictable
+- expose agent workflows and exchange workflows clearly
+- separate read-only market access from execution authority
+- keep authentication and ownership rules explicit
+- expose enough structure for mobile and streaming clients
+
+## Why the API is grouped this way
+
+The endpoint groups map to runtime behaviors:
+
+- `Auth` for wallet identity
+- `Agent` for assistant interactions
+- `Exchange Connections` for Backpack credential-backed execution access
+- `Drift` for same-wallet execution flow
+- `Assets` for market-facing lookup and chart data
+- `Memory` for long-term semantic memory
+- `Models` for OpenRouter model and session-cost operations
+- `System` and `Streaming` for transport and service health
+
+This grouping is more useful than table-based grouping because the frontend interacts with product capabilities, not storage tables.
+
+## Identity and ownership model
+
+The backend is moving toward auth-derived ownership.
+
+Current principles:
+
+- bearer auth is the preferred identity source
+- some routes still accept `user_id` for compatibility
+- ownership-sensitive flows should resolve identity from verified auth whenever possible
+- Backpack and Drift use different execution-authority models and should not be treated as the same thing
+
+## Execution design
+
+Execution is intentionally split by exchange model:
+
+### Backpack
+
+- authority comes from encrypted exchange API credentials
+- backend can evaluate execution readiness from stored connection state
+
+### Drift
+
+- authority comes from wallet identity and execution-wallet rules
+- current flow is same-wallet oriented
+- execution is prepared server-side and signed client-side
+
+This split is reflected in the API because the underlying security model is different.
+
+## Streaming design
+
+The API uses two streaming patterns:
+
+- SSE for agent response and UI events
+- WebSocket for market price broadcasting
+
+This separation keeps the frontend model simple:
+
+- assistant UX uses SSE
+- market transport uses WebSocket
+
+## Response design
+
+Response payloads try to balance:
+
+- human-readable integration behavior
+- strong typing through FastAPI/Pydantic models
+- frontend-friendly summaries for execution readiness and session cost
+
+Examples:
+
+- `ExecutionAccessResponse` hides Backpack vs Drift authority differences behind one frontend-facing shape
+- `session_cost` gives one accumulated chat/session summary instead of forcing the client to recalculate per turn
+
+## Practical integration path
+
+For most clients, the recommended order is:
+
+1. authenticate with wallet auth
+2. call agent chat or streaming chat
+3. fetch execution-access state
+4. use Backpack or Drift execution flows as needed
+5. use assets and OHLC endpoints for market surfaces
+
+## Source of truth
+
+The final source of truth for request and response shapes is:
+
+- backend route definitions
+- generated OpenAPI schema
+- OpenAPI-rendered endpoint pages in this section

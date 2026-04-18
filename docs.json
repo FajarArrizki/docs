@@ -1,104 +1,170 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Rabit",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#FD4C01",
+    "light": "#FAFAFA",
+    "dark": "#262626"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "/favicon.png",
+  "appearance": {
+    "default": "system"
+  },
+  "background": {
+    "color": {
+      "light": "#EFEFEF",
+      "dark": "#010101"
+    }
+  },
+  "api": {
+    "baseUrl": "http://localhost:8000",
+    "auth": {
+      "method": "bearer",
+      "name": "Authorization",
+      "inputPrefix": "Bearer "
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Getting Started",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Overview",
             "pages": [
               "index",
-              "quickstart",
-              "development"
-            ]
-          },
-          {
-            "group": "Customization",
-            "pages": [
-              "essentials/settings",
-              "essentials/navigation"
-            ]
-          },
-          {
-            "group": "Writing content",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "getting-started/run/quickstart"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Rabit Backend",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Features",
+            "expanded": false,
             "pages": [
-              "api-reference/introduction"
+              "features/index",
+              "features/agent/index",
+              "features/execution/index"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Architecture",
+            "expanded": false,
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "architecture/index",
+              "architecture/system/index",
+              "architecture/data-layer"
+            ]
+          },
+          {
+            "group": "Agents",
+            "expanded": false,
+            "pages": [
+              "agents/index",
+              "agents/runtime/structure",
+              "agents/auth/wallet-auth",
+              "agents/routing/intent-routing"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "expanded": false,
+            "pages": [
+              "integrations/index",
+              "integrations/backpack/index",
+              "integrations/drift/index",
+              "integrations/openrouter/index",
+              "integrations/mem0/index",
+              "integrations/coingecko/index"
+            ]
+          },
+          {
+            "group": "WebSocket and data",
+            "expanded": false,
+            "pages": [
+              "websocket/overview",
+              "websocket/data-sources",
+              "websocket/backpack/index",
+              "websocket/drift/index",
+              "websocket/binance/index"
+            ]
+          },
+          {
+            "group": "Tools",
+            "expanded": false,
+            "pages": [
+              "tools/index",
+              "tools/market/index",
+              "tools/tradingview/index",
+              "tools/execution",
+              "tools/decision-support",
+              "tools/memory",
+              "tools/ui-streaming"
+            ]
+          },
+          {
+            "group": "Development",
+            "expanded": false,
+            "pages": [
+              "development/index",
+              "development/setup/index"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Rabit Mobile",
+        "groups": [
+          {
+            "group": " ",
+            "pages": [
+              "mobile/index"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Rabit Contract",
+        "groups": [
+          {
+            "group": " ",
+            "pages": [
+              "contract/index"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "openapi": "api-reference/openapi.json",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/introduction",
+              "api-reference/design"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "api-reference/auth",
+              "api-reference/agent",
+              "api-reference/exchange-connections",
+              "api-reference/drift"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
+    ]
   },
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
+    "light": "/logo/rabit-logo-light.png",
+    "dark": "/logo/rabit-logo-dark.png"
   },
   "contextual": {
     "options": [
@@ -111,12 +177,5 @@
      "cursor",
      "vscode"
    ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
   }
 }

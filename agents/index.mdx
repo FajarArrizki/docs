@@ -1,0 +1,55 @@
+---
+title: "Agents"
+description: "How Rabit's runtime agent works, why one adaptive agent was chosen, and how context and exchange behavior shape the response."
+---
+
+Rabit uses one concrete runtime agent: `TradingAgent`.
+
+That choice is important.
+
+Instead of introducing many separate specialist runtimes too early, Rabit keeps one adaptive entry point and makes it smarter through:
+
+- intent routing
+- tool grouping
+- context handling
+- exchange-aware behavior
+
+## Why this matters
+
+This keeps the architecture easier to reason about while still allowing the product to behave differently for:
+
+- analysis
+- monitoring
+- execution-aware requests
+- memory-backed conversations
+
+## What this section explains
+
+| Topic | Why it matters |
+| --- | --- |
+| Runtime structure | shows how the agent is orchestrated |
+| Wallet auth | explains how identity reaches protected agent behavior |
+| Market and request context | explains why the same prompt can behave differently depending on the current screen or scope |
+| Intent routing | shows how Rabit narrows tool access and response behavior |
+| Exchange behavior | explains why Backpack and Drift are handled differently inside the agent |
+
+## Why one agent is still enough today
+
+The key point is that Rabit is not trying to win by multiplying runtime agents.
+
+It is trying to win by making one agent:
+
+- better informed
+- better gated
+- better connected to system tools
+- safer around execution
+
+That is a more disciplined architecture for the product stage Rabit is in now.
+
+## Read this with
+
+- [Structure](./runtime/structure)
+- [Wallet Auth](./auth/wallet-auth)
+- [Intent Routing](./routing/intent-routing)
+- [Exchange Execution](/features/execution)
+

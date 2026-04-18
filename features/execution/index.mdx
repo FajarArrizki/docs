@@ -1,0 +1,79 @@
+---
+title: "Exchange Execution"
+description: "How Rabit supports Backpack and Drift execution with different trust models instead of pretending all exchanges work the same way."
+---
+
+Rabit does not treat every exchange as the same execution surface.
+
+That is one of the most important architectural choices in the backend.
+
+## Why this matters
+
+Many products flatten everything into a single "trade now" abstraction.
+
+Rabit does not do that, because:
+
+| Execution difference | Why it matters |
+| --- | --- |
+| Backpack is credential-based | it behaves more like a conventional backend trading integration |
+| Drift is wallet-authority-based | it stays closer to wallet and signer authority |
+| the trust, security, and UX models are different | the backend should not flatten them into one fake abstraction |
+
+That means safe execution support requires exchange-aware design.
+
+## Current execution model by exchange
+
+| Exchange | Authority model | What Rabit supports today |
+| --- | --- | --- |
+| Backpack | API key + secret | encrypted credential storage, read-only tools, place/cancel order tools, execution gating |
+| Drift | wallet-linked authority | read-only account tools, same-wallet execution preparation, signed transaction submission bridge |
+
+## Backpack: practical exchange execution
+
+Backpack is the more conventional backend execution path.
+
+| Backpack capability | What it means in practice |
+| --- | --- |
+| encrypted credentials per user | execution ownership stays scoped and safer |
+| balances, collateral, positions, and orders | the product can read real account state |
+| place and cancel orders when execution is enabled | Rabit can move from guidance into action |
+
+This makes Backpack the closest thing Rabit has today to a classic backend-side trading integration.
+
+## Drift: wallet-native execution
+
+Drift is deliberately different.
+
+The backend does not pretend it can safely act like a normal exchange credential service, because Drift execution is much closer to wallet authority.
+
+| Drift direction | Why it exists |
+| --- | --- |
+| strong read-only coverage | the product can be useful before full automation |
+| same-wallet execution preparation | current execution stays aligned with verified wallet identity |
+| mobile signing where needed | the system avoids pretending backend custody is free |
+| future-friendly support for session-key or delegated flows | the architecture can evolve without rewriting the model |
+
+## Why this matters
+
+The important point is not only that Rabit can reach execution-related flows.
+
+The more important point is that Rabit understands **how** different execution systems should be treated.
+
+That makes the backend more credible, because it does not ignore custody and authority differences for the sake of a simpler story.
+
+## Execution safety layers
+
+| Layer | Purpose |
+| --- | --- |
+| Wallet auth | identifies the acting user |
+| Execution access state | gives the frontend one unified view of whether action is ready |
+| Exchange-specific gates | allow or deny live execution per request and per backend policy |
+| Exchange-aware tools | expose only the operations appropriate for each authority model |
+
+## Read this with
+
+- [Backpack Integration](/integrations/backpack)
+- [Drift Integration](/integrations/drift)
+- [Exchange Connections API](/api-reference/exchange-connections)
+- [Drift API Architecture](/api-reference/drift)
+

@@ -1,72 +1,24 @@
 {
-  "openapi": "3.1.0",
+  "openapi": "3.0.3",
   "info": {
-    "title": "OpenAPI Plant Store",
-    "description": "A sample API that uses a plant store as an example to demonstrate features in the OpenAPI specification",
-    "license": {
-      "name": "MIT"
-    },
+    "title": "Rabit Backend API",
+    "description": "REST and streaming API for the Rabit trading assistant backend.",
     "version": "1.0.0"
   },
-  "servers": [
-    {
-      "url": "http://sandbox.mintlify.com"
-    }
-  ],
-  "security": [
-    {
-      "bearerAuth": []
-    }
-  ],
   "paths": {
-    "/plants": {
-      "get": {
-        "description": "Returns all plants from the system that the user has access to",
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "The maximum number of results to return",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Plant response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Plant"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Unexpected error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
+    "/api/auth/wallet/nonce": {
       "post": {
-        "description": "Creates a new plant in the store",
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create wallet sign-in challenge",
+        "description": "Create a one-time wallet sign-in challenge for mobile clients.",
+        "operationId": "create_wallet_nonce_api_auth_wallet_nonce_post",
         "requestBody": {
-          "description": "Plant to add to the store",
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NewPlant"
+                "$ref": "#/components/schemas/WalletAuthNonceRequest"
               }
             }
           },
@@ -74,21 +26,21 @@
         },
         "responses": {
           "200": {
-            "description": "plant response",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Plant"
+                  "$ref": "#/components/schemas/WalletAuthNonceResponse"
                 }
               }
             }
           },
-          "400": {
-            "description": "unexpected error",
+          "422": {
+            "description": "Validation Error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -96,57 +48,2025 @@
         }
       }
     },
-    "/plants/{id}": {
-      "delete": {
-        "description": "Deletes a single plant based on the ID supplied",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID of plant to delete",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
+    "/api/auth/wallet/verify": {
+      "post": {
+        "tags": [
+          "Auth"
         ],
-        "responses": {
-          "204": {
-            "description": "Plant deleted",
-            "content": {}
+        "summary": "Verify wallet signature and issue JWT",
+        "description": "Verify a signed wallet challenge and issue a bearer token.",
+        "operationId": "verify_wallet_signin_api_auth_wallet_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalletAuthVerifyRequest"
+              }
+            }
           },
-          "400": {
-            "description": "unexpected error",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/WalletAuthVerifyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
           }
         }
       }
-    }
-  },
-  "webhooks": {
-    "/plant/webhook": {
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Return authenticated wallet identity",
+        "description": "Return the current authenticated wallet identity.",
+        "operationId": "get_authenticated_me_api_auth_me_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/drift/execution-wallet": {
+      "get": {
+        "tags": [
+          "Drift"
+        ],
+        "summary": "Return resolved Drift execution wallet status",
+        "description": "Return the current Drift auth-wallet/execution-wallet status.",
+        "operationId": "get_drift_execution_wallet_api_drift_execution_wallet_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriftExecutionWalletResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/execution-access": {
+      "get": {
+        "tags": [
+          "Exchange Connections"
+        ],
+        "summary": "Return unified execution access status",
+        "description": "Return a unified frontend-friendly execution access status for Backpack and Drift.",
+        "operationId": "get_execution_access_status_api_execution_access_get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Optional explicit user ID when no bearer token is available",
+              "title": "User Id",
+              "nullable": true
+            },
+            "description": "Optional explicit user ID when no bearer token is available"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionAccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/openrouter/session-costs/{scope_id}": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Return accumulated OpenRouter session cost for one scope",
+        "description": "Return one scope_id's accumulated OpenRouter usage and estimated cost.",
+        "operationId": "get_openrouter_session_cost_api_openrouter_session_costs__scope_id__get",
+        "parameters": [
+          {
+            "name": "scope_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scope Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Optional explicit user ID when no bearer token is available",
+              "title": "User Id",
+              "nullable": true
+            },
+            "description": "Optional explicit user ID when no bearer token is available"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenRouterSessionCostResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/drift/execution/prepare": {
       "post": {
-        "description": "Information about a new plant added to the store",
+        "tags": [
+          "Drift"
+        ],
+        "summary": "Prepare same-wallet Drift execution intent",
+        "description": "Prepare a same-wallet Drift execution request for client-side signing.",
+        "operationId": "prepare_drift_execution_api_drift_execution_prepare_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
         "requestBody": {
-          "description": "Plant added to the store",
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NewPlant"
+                "$ref": "#/components/schemas/DriftExecutionPrepareRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Return a 200 status to indicate that the data was received successfully"
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriftExecutionRecordResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/drift/execution/{execution_id}": {
+      "get": {
+        "tags": [
+          "Drift"
+        ],
+        "summary": "Get Drift execution request status",
+        "description": "Return one owned Drift execution request.",
+        "operationId": "get_drift_execution_status_api_drift_execution__execution_id__get",
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriftExecutionRecordResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/drift/execution/submit": {
+      "post": {
+        "tags": [
+          "Drift"
+        ],
+        "summary": "Submit signed same-wallet Drift transaction",
+        "description": "Submit a signed same-wallet Drift transaction to Solana RPC.",
+        "operationId": "submit_drift_execution_api_drift_execution_submit_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriftExecutionSubmitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriftExecutionSubmitResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exchange-connections/backpack": {
+      "post": {
+        "tags": [
+          "Exchange Connections"
+        ],
+        "summary": "Create Backpack exchange connection",
+        "description": "Create an encrypted Backpack connection owned by one user.",
+        "operationId": "create_backpack_exchange_connection_api_exchange_connections_backpack_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExchangeConnectionCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExchangeConnectionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exchange-connections": {
+      "get": {
+        "tags": [
+          "Exchange Connections"
+        ],
+        "summary": "List exchange connections",
+        "description": "List stored exchange connections for one user.",
+        "operationId": "list_exchange_connections_api_exchange_connections_get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "User ID that owns the connections",
+              "title": "User Id",
+              "nullable": true
+            },
+            "description": "User ID that owns the connections"
+          },
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Optional exchange filter",
+              "title": "Exchange",
+              "nullable": true
+            },
+            "description": "Optional exchange filter"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExchangeConnectionListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exchange-connections/{connection_id}": {
+      "patch": {
+        "tags": [
+          "Exchange Connections"
+        ],
+        "summary": "Update exchange connection metadata",
+        "description": "Update non-secret metadata for one stored exchange connection.",
+        "operationId": "update_exchange_connection_api_exchange_connections__connection_id__patch",
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Connection Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExchangeConnectionUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExchangeConnectionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Exchange Connections"
+        ],
+        "summary": "Delete exchange connection",
+        "description": "Delete one stored exchange connection.",
+        "operationId": "delete_exchange_connection_api_exchange_connections__connection_id__delete",
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Connection Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "User ID that owns the connection",
+              "title": "User Id",
+              "nullable": true
+            },
+            "description": "User ID that owns the connection"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExchangeConnectionDeleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Get list of assets",
+        "description": "Get list of all available assets with price data",
+        "operationId": "get_assets_api_assets_get",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filter by category (e.g., 'DeFi', 'Stablecoin')",
+              "title": "Category",
+              "nullable": true
+            },
+            "description": "Filter by category (e.g., 'DeFi', 'Stablecoin')"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of assets to return",
+              "default": 50,
+              "title": "Limit",
+              "nullable": true
+            },
+            "description": "Maximum number of assets to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/search": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Search tracked assets",
+        "description": "Search tracked assets by symbol, name, or category",
+        "operationId": "search_assets_api_assets_search_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Search query such as BTC, Bitcoin, or DeFi",
+              "title": "Q"
+            },
+            "description": "Search query such as BTC, Bitcoin, or DeFi"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of results to return",
+              "default": 20,
+              "title": "Limit",
+              "nullable": true
+            },
+            "description": "Maximum number of results to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetSearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/categories": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "List available asset categories",
+        "description": "List normalized categories currently represented in tracked assets",
+        "operationId": "list_asset_categories_api_assets_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetCategoryListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/categories/{category}": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "List assets for one category",
+        "description": "Return tracked assets belonging to one normalized category",
+        "operationId": "list_assets_by_category_api_assets_categories__category__get",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Category"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of results to return",
+              "default": 50,
+              "title": "Limit",
+              "nullable": true
+            },
+            "description": "Maximum number of results to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetCategoryAssetsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/supported": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "List supported tracked assets",
+        "description": "Return the configured tracked asset symbols used by the backend",
+        "operationId": "list_supported_trading_assets_api_assets_supported_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportedTradingAssetsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/trending": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "List lightweight trending tracked assets",
+        "description": "Return a lightweight trending ranking built from tracked assets, volume, and 24h move",
+        "operationId": "list_trending_assets_api_assets_trending_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of trending assets to return",
+              "default": 10,
+              "title": "Limit",
+              "nullable": true
+            },
+            "description": "Maximum number of trending assets to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrendingAssetsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{symbol}/summary": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Get asset summary",
+        "description": "Return a one-shot asset summary for frontend detail headers and overview cards",
+        "operationId": "get_asset_summary_api_assets__symbol__summary_get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Symbol"
+            }
+          },
+          {
+            "name": "related_limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of related assets to include",
+              "default": 3,
+              "title": "Related Limit",
+              "nullable": true
+            },
+            "description": "Maximum number of related assets to include"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetSummaryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{symbol}": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Get asset detail",
+        "description": "Get detailed information for a specific asset",
+        "operationId": "get_asset_detail_api_assets__symbol__get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Symbol"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{symbol}/related": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Get related tracked assets",
+        "description": "Return tracked assets related by shared categories",
+        "operationId": "get_related_assets_api_assets__symbol__related_get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Symbol"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of related assets to return",
+              "default": 5,
+              "title": "Limit",
+              "nullable": true
+            },
+            "description": "Maximum number of related assets to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelatedAssetsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{symbol}/ohlc": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Get OHLC data",
+        "description": "Get OHLC (candlestick) data for charting",
+        "operationId": "get_ohlc_data_api_assets__symbol__ohlc_get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Symbol"
+            }
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Interval (1m, 5m, 15m, 1h, 4h, 1d)",
+              "default": "1h",
+              "title": "Interval"
+            },
+            "description": "Interval (1m, 5m, 15m, 1h, 4h, 1d)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Number of candles to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Number of candles to return"
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Data source: 'backpack', 'binance', or 'auto'",
+              "default": "auto",
+              "title": "Source"
+            },
+            "description": "Data source: 'backpack', 'binance', or 'auto'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OHLCResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/memory/health": {
+      "get": {
+        "tags": [
+          "Memory"
+        ],
+        "summary": "Check Mem0 health",
+        "description": "Return whether Mem0 is enabled and reachable.",
+        "operationId": "get_memory_health_api_memory_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryHealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/memory/search": {
+      "get": {
+        "tags": [
+          "Memory"
+        ],
+        "summary": "Search user memories",
+        "description": "Search Mem0 memories for one user.",
+        "operationId": "search_memory_api_memory_search_get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "User ID",
+              "title": "User Id"
+            },
+            "description": "User ID"
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Semantic search query",
+              "title": "Query"
+            },
+            "description": "Semantic search query"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of memories",
+              "default": 5,
+              "title": "Limit"
+            },
+            "description": "Maximum number of memories"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/memory": {
+      "get": {
+        "tags": [
+          "Memory"
+        ],
+        "summary": "List user memories",
+        "description": "List all stored memories for one user.",
+        "operationId": "list_memory_api_memory_get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "User ID",
+              "title": "User Id"
+            },
+            "description": "User ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Memory"
+        ],
+        "summary": "Create a user memory",
+        "description": "Create a Mem0 memory through the backend API.",
+        "operationId": "create_memory_api_memory_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemoryCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Memory"
+        ],
+        "summary": "Delete all user memories",
+        "description": "Delete all Mem0 memories for one user.",
+        "operationId": "delete_all_memory_api_memory_delete",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "User ID",
+              "title": "User Id"
+            },
+            "description": "User ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryDeleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/memory/{memory_id}": {
+      "delete": {
+        "tags": [
+          "Memory"
+        ],
+        "summary": "Delete one user memory",
+        "description": "Delete one Mem0 memory by ID.",
+        "operationId": "delete_memory_api_memory__memory_id__delete",
+        "parameters": [
+          {
+            "name": "memory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Memory Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "User ID",
+              "title": "User Id"
+            },
+            "description": "User ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryDeleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/uploads": {
+      "post": {
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Upload temporary agent attachment",
+        "description": "Upload a temporary image or PDF for agent multimodal input.",
+        "operationId": "upload_agent_attachment_api_agent_uploads_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_agent_attachment_api_agent_uploads_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentUploadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/uploads/{file_id}": {
+      "delete": {
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Delete temporary agent attachment",
+        "description": "Delete a temporary uploaded attachment.",
+        "operationId": "delete_agent_attachment_api_agent_uploads__file_id__delete",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentUploadDeleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/chat": {
+      "post": {
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Chat with Rabit agent using temporary multimodal uploads",
+        "description": "Chat with the Rabit agent using optional uploaded image/PDF attachments.",
+        "operationId": "chat_with_agent_api_agent_chat_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentChatResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/chat/stream": {
+      "post": {
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Stream Rabit agent chat events over SSE",
+        "description": "Stream agent output, thinking summary, plan, hint, and error events over SSE.",
+        "operationId": "stream_chat_with_agent_api_agent_chat_stream_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Health check",
+        "description": "Check API health status",
+        "operationId": "health_check_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "List Models",
+        "description": "List available OpenRouter models with filtering\n\nQuery Parameters:\n- require_tools: Only models that support tool calling\n- require_reasoning: Only models that support reasoning\n- min_context: Minimum context length\n- max_input_price: Maximum input price per 1M tokens (USD)\n- max_output_price: Maximum output price per 1M tokens (USD)\n- provider: Filter by provider (e.g., 'anthropic', 'openai', 'google')\n- enabled_only: Only return enabled models (default: true)\n- refresh: Force refresh from OpenRouter API (default: false)",
+        "operationId": "list_models_api_models_get",
+        "parameters": [
+          {
+            "name": "require_tools",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Require Tools"
+            }
+          },
+          {
+            "name": "require_reasoning",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Require Reasoning"
+            }
+          },
+          {
+            "name": "min_context",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "title": "Min Context",
+              "nullable": true
+            }
+          },
+          {
+            "name": "max_input_price",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "title": "Max Input Price",
+              "nullable": true
+            }
+          },
+          {
+            "name": "max_output_price",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "title": "Max Output Price",
+              "nullable": true
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Provider",
+              "nullable": true
+            }
+          },
+          {
+            "name": "enabled_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Enabled Only"
+            }
+          },
+          {
+            "name": "refresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelsListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/stats": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Get Models Stats",
+        "description": "Get statistics about available models",
+        "operationId": "get_models_stats_api_models_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelStatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/{model_id}": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Get Model Info",
+        "description": "Get information about a specific model",
+        "operationId": "get_model_info_api_models__model_id__get",
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelInfoResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/toggle": {
+      "post": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Toggle Model",
+        "description": "Enable or disable a model",
+        "operationId": "toggle_model_api_models_toggle_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelToggleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/providers": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "List Providers",
+        "description": "Get list of all providers",
+        "operationId": "list_providers_api_models_providers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/grouped": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Get Models Grouped",
+        "description": "Get models grouped by provider\n\nQuery Parameters:\n- enabled_only: Only include enabled models (default: true)\n- require_tools: Only models with tool calling support\n- require_reasoning: Only models with reasoning support",
+        "operationId": "get_models_grouped_api_models_grouped_get",
+        "parameters": [
+          {
+            "name": "enabled_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Enabled Only"
+            }
+          },
+          {
+            "name": "require_tools",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Require Tools"
+            }
+          },
+          {
+            "name": "require_reasoning",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Require Reasoning"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/database/stats": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Get Database Stats",
+        "description": "Get database statistics",
+        "operationId": "get_database_stats_api_models_database_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/database/refresh": {
+      "post": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Refresh Database",
+        "description": "Force refresh database from OpenRouter API",
+        "operationId": "refresh_database_api_models_database_refresh_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/database/clear": {
+      "delete": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Clear Database",
+        "description": "Clear all models from database (will be refetched on next request)",
+        "operationId": "clear_database_api_models_database_clear_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Root",
+        "description": "Root endpoint - API information",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
           }
         }
       }
@@ -154,64 +2074,2249 @@
   },
   "components": {
     "schemas": {
-      "Plant": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
+      "AgentBackpackExecutionContext": {
         "properties": {
-          "name": {
-            "description": "The name of the plant",
-            "type": "string"
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Whether live Backpack trade execution is enabled for this request",
+            "default": false
           },
-          "tag": {
-            "description": "Tag to specify the type",
-            "type": "string"
+          "exchange": {
+            "type": "string",
+            "title": "Exchange",
+            "description": "Execution exchange identifier. Reserved for Backpack v1.",
+            "default": "backpack"
           }
-        }
+        },
+        "type": "object",
+        "title": "AgentBackpackExecutionContext",
+        "description": "Optional Backpack execution gate supplied by the frontend."
       },
-      "NewPlant": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Plant"
+      "AgentChatRequest": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "User message for the agent"
           },
-          {
-            "required": [
-              "id"
-            ],
-            "type": "object",
-            "properties": {
-              "id": {
-                "description": "Identification number of the plant",
-                "type": "integer",
-                "format": "int64"
-              }
-            }
+          "scope_id": {
+            "type": "string",
+            "title": "Scope Id",
+            "description": "Optional memory scope for the chat session",
+            "nullable": true
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "description": "Optional user ID for Mem0 long-term memory",
+            "nullable": true
+          },
+          "conversation_style": {
+            "type": "string",
+            "title": "Conversation Style",
+            "description": "Response style: normal, learning, concise, explanatory, or formal",
+            "default": "normal"
+          },
+          "trading_style": {
+            "type": "string",
+            "title": "Trading Style",
+            "description": "Trading analysis style: balanced, price_action, trend_following, momentum_breakout, mean_reversion, smart_money, risk_first, or systematic",
+            "default": "balanced"
+          },
+          "market_context": {
+            "$ref": "#/components/schemas/AgentMarketContext",
+            "description": "Optional frontend market scope and market-state context",
+            "nullable": true
+          },
+          "backpack_execution": {
+            "$ref": "#/components/schemas/AgentBackpackExecutionContext",
+            "description": "Optional frontend gate controlling whether Backpack live execution is allowed",
+            "nullable": true
+          },
+          "drift_execution": {
+            "$ref": "#/components/schemas/AgentDriftExecutionContext",
+            "description": "Optional frontend gate controlling whether Drift live execution is allowed",
+            "nullable": true
+          },
+          "attachment_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Attachment Ids",
+            "description": "Temporary uploaded file IDs"
           }
-        ]
-      },
-      "Error": {
+        },
+        "type": "object",
         "required": [
-          "error",
           "message"
         ],
-        "type": "object",
+        "title": "AgentChatRequest",
+        "description": "Request body for multimodal agent chat."
+      },
+      "AgentChatResponse": {
         "properties": {
-          "error": {
+          "response": {
+            "type": "string",
+            "title": "Response"
+          },
+          "scope_id": {
+            "type": "string",
+            "title": "Scope Id",
+            "nullable": true
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "nullable": true
+          },
+          "conversation_style": {
+            "type": "string",
+            "title": "Conversation Style",
+            "default": "normal"
+          },
+          "trading_style": {
+            "type": "string",
+            "title": "Trading Style",
+            "default": "balanced"
+          },
+          "market_context": {
+            "$ref": "#/components/schemas/AgentMarketContext",
+            "nullable": true
+          },
+          "backpack_execution": {
+            "$ref": "#/components/schemas/AgentBackpackExecutionContext",
+            "nullable": true
+          },
+          "drift_execution": {
+            "$ref": "#/components/schemas/AgentDriftExecutionContext",
+            "nullable": true
+          },
+          "attachment_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Attachment Ids"
+          },
+          "intent": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Intent",
+            "nullable": true
+          },
+          "session_cost": {
+            "$ref": "#/components/schemas/OpenRouterSessionCostResponse",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "response"
+        ],
+        "title": "AgentChatResponse",
+        "description": "Response body for multimodal agent chat."
+      },
+      "AgentDriftExecutionContext": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Whether live Drift trade execution is enabled for this request",
+            "default": false
+          },
+          "exchange": {
+            "type": "string",
+            "title": "Exchange",
+            "description": "Execution exchange identifier. Reserved for Drift v1.",
+            "default": "drift"
+          }
+        },
+        "type": "object",
+        "title": "AgentDriftExecutionContext",
+        "description": "Optional Drift execution gate supplied by the frontend."
+      },
+      "AgentMarketContext": {
+        "properties": {
+          "scope_mode": {
+            "type": "string",
+            "title": "Scope Mode",
+            "default": "global"
+          },
+          "asset_id": {
+            "type": "string",
+            "title": "Asset Id",
+            "nullable": true
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "nullable": true
+          },
+          "asset_name": {
+            "type": "string",
+            "title": "Asset Name",
+            "nullable": true
+          },
+          "exchange": {
+            "type": "string",
+            "title": "Exchange",
+            "nullable": true
+          },
+          "timeframe": {
+            "type": "string",
+            "title": "Timeframe",
+            "nullable": true
+          },
+          "source_screen": {
+            "type": "string",
+            "title": "Source Screen",
+            "nullable": true
+          },
+          "watchlist_symbols": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Watchlist Symbols"
+          },
+          "market_state": {
+            "$ref": "#/components/schemas/AgentMarketStateContext"
+          }
+        },
+        "type": "object",
+        "title": "AgentMarketContext",
+        "description": "Optional asset scope and market-state context supplied by the frontend."
+      },
+      "AgentMarketStateContext": {
+        "properties": {
+          "trend_bias": {
+            "type": "string",
+            "title": "Trend Bias",
+            "default": "unknown"
+          },
+          "structure_position": {
+            "type": "string",
+            "title": "Structure Position",
+            "default": "unknown"
+          },
+          "volatility_regime": {
+            "type": "string",
+            "title": "Volatility Regime",
+            "default": "unknown"
+          },
+          "momentum_state": {
+            "type": "string",
+            "title": "Momentum State",
+            "default": "unknown"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "AgentMarketStateContext",
+        "description": "Optional market-state hints supplied by the frontend."
+      },
+      "AgentUploadDeleteResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "file_id": {
+            "type": "string",
+            "title": "File Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "file_id"
+        ],
+        "title": "AgentUploadDeleteResponse",
+        "description": "Response for deleting a temporary upload."
+      },
+      "AgentUploadResponse": {
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "title": "File Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "size_bytes": {
             "type": "integer",
-            "format": "int32"
+            "title": "Size Bytes"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_id",
+          "filename",
+          "content_type",
+          "kind",
+          "size_bytes",
+          "expires_at"
+        ],
+        "title": "AgentUploadResponse",
+        "description": "Response for agent temporary uploads."
+      },
+      "AssetCategoryAssetsResponse": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "description": "Normalized category name"
+          },
+          "assets": {
+            "items": {
+              "$ref": "#/components/schemas/AssetListItem"
+            },
+            "type": "array",
+            "title": "Assets"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of assets in the category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "assets",
+          "total"
+        ],
+        "title": "AssetCategoryAssetsResponse",
+        "description": "Response for GET /api/assets/categories/{category}"
+      },
+      "AssetCategoryItem": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Normalized category name"
+          },
+          "asset_count": {
+            "type": "integer",
+            "title": "Asset Count",
+            "description": "Number of tracked assets in this category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "asset_count"
+        ],
+        "title": "AssetCategoryItem",
+        "description": "One available asset category and its asset count."
+      },
+      "AssetCategoryListResponse": {
+        "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/AssetCategoryItem"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of available categories"
+          }
+        },
+        "type": "object",
+        "required": [
+          "categories",
+          "total"
+        ],
+        "title": "AssetCategoryListResponse",
+        "description": "Response for GET /api/assets/categories"
+      },
+      "AssetDetailResponse": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price"
+          },
+          "change_24h": {
+            "type": "number",
+            "title": "Change 24H",
+            "nullable": true
+          },
+          "volume_24h": {
+            "type": "number",
+            "title": "Volume 24H",
+            "nullable": true
+          },
+          "high_24h": {
+            "type": "number",
+            "title": "High 24H",
+            "nullable": true
+          },
+          "low_24h": {
+            "type": "number",
+            "title": "Low 24H",
+            "nullable": true
+          },
+          "market_cap": {
+            "type": "number",
+            "title": "Market Cap",
+            "nullable": true
+          },
+          "fdv": {
+            "type": "number",
+            "title": "Fdv",
+            "nullable": true
+          },
+          "open_interest": {
+            "type": "number",
+            "title": "Open Interest",
+            "nullable": true
+          },
+          "funding_rate": {
+            "type": "number",
+            "title": "Funding Rate",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "nullable": true
+          },
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "links": {
+            "$ref": "#/components/schemas/AssetLinks"
+          },
+          "last_updated": {
+            "type": "string",
+            "title": "Last Updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "name",
+          "price",
+          "links",
+          "last_updated"
+        ],
+        "title": "AssetDetailResponse",
+        "description": "Response for GET /api/assets/{symbol}"
+      },
+      "AssetLinks": {
+        "properties": {
+          "website": {
+            "type": "string",
+            "title": "Website",
+            "nullable": true
+          },
+          "twitter": {
+            "type": "string",
+            "title": "Twitter",
+            "nullable": true
+          },
+          "telegram": {
+            "type": "string",
+            "title": "Telegram",
+            "nullable": true
+          },
+          "github": {
+            "type": "string",
+            "title": "Github",
+            "nullable": true
+          },
+          "explorer": {
+            "type": "string",
+            "title": "Explorer",
+            "nullable": true
+          },
+          "contract_address": {
+            "type": "string",
+            "title": "Contract Address",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "AssetLinks",
+        "description": "Asset links"
+      },
+      "AssetListItem": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Asset symbol (e.g., 'BTC')"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Asset name (e.g., 'Bitcoin')"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price",
+            "description": "Current price"
+          },
+          "change_24h": {
+            "type": "number",
+            "title": "Change 24H",
+            "description": "24h price change percentage",
+            "nullable": true
+          },
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categories",
+            "description": "Asset categories"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "name",
+          "price"
+        ],
+        "title": "AssetListItem",
+        "description": "Asset item in list"
+      },
+      "AssetListResponse": {
+        "properties": {
+          "assets": {
+            "items": {
+              "$ref": "#/components/schemas/AssetListItem"
+            },
+            "type": "array",
+            "title": "Assets"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of assets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assets",
+          "total"
+        ],
+        "title": "AssetListResponse",
+        "description": "Response for GET /api/assets"
+      },
+      "AssetSearchResponse": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query",
+            "description": "Search query used to match assets"
+          },
+          "assets": {
+            "items": {
+              "$ref": "#/components/schemas/AssetListItem"
+            },
+            "type": "array",
+            "title": "Assets"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of matched assets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "assets",
+          "total"
+        ],
+        "title": "AssetSearchResponse",
+        "description": "Response for GET /api/assets/search"
+      },
+      "AssetSummaryResponse": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price"
+          },
+          "change_24h": {
+            "type": "number",
+            "title": "Change 24H",
+            "nullable": true
+          },
+          "volume_24h": {
+            "type": "number",
+            "title": "Volume 24H",
+            "nullable": true
+          },
+          "market_cap": {
+            "type": "number",
+            "title": "Market Cap",
+            "nullable": true
+          },
+          "fdv": {
+            "type": "number",
+            "title": "Fdv",
+            "nullable": true
+          },
+          "open_interest": {
+            "type": "number",
+            "title": "Open Interest",
+            "nullable": true
+          },
+          "funding_rate": {
+            "type": "number",
+            "title": "Funding Rate",
+            "nullable": true
+          },
+          "primary_category": {
+            "type": "string",
+            "title": "Primary Category",
+            "nullable": true
+          },
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "nullable": true
+          },
+          "links": {
+            "$ref": "#/components/schemas/AssetLinks"
+          },
+          "related_assets": {
+            "items": {
+              "$ref": "#/components/schemas/AssetListItem"
+            },
+            "type": "array",
+            "title": "Related Assets"
+          },
+          "last_updated": {
+            "type": "string",
+            "title": "Last Updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "name",
+          "price",
+          "links",
+          "last_updated"
+        ],
+        "title": "AssetSummaryResponse",
+        "description": "Response for GET /api/assets/{symbol}/summary"
+      },
+      "AuthMeResponse": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "wallet_address": {
+            "type": "string",
+            "title": "Wallet Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "wallet_address"
+        ],
+        "title": "AuthMeResponse",
+        "description": "Authenticated wallet identity."
+      },
+      "Body_upload_agent_attachment_api_agent_uploads_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "title": "File",
+            "format": "binary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_agent_attachment_api_agent_uploads_post"
+      },
+      "DriftExecutionPrepareRequest": {
+        "properties": {
+          "sub_account_id": {
+            "type": "integer",
+            "title": "Sub Account Id",
+            "description": "Drift subaccount index",
+            "default": 0
+          },
+          "market_type": {
+            "type": "string",
+            "title": "Market Type",
+            "description": "Drift market type. v1 defaults to perp.",
+            "default": "perp"
+          },
+          "market_index": {
+            "type": "integer",
+            "title": "Market Index",
+            "description": "Optional Drift market index",
+            "nullable": true
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Optional market symbol such as SOL-PERP",
+            "nullable": true
+          },
+          "side": {
+            "type": "string",
+            "title": "Side",
+            "description": "Order side such as long, short, buy, or sell"
+          },
+          "order_type": {
+            "type": "string",
+            "title": "Order Type",
+            "description": "Order type such as limit or market"
+          },
+          "base_asset_amount": {
+            "type": "string",
+            "title": "Base Asset Amount",
+            "description": "Base asset amount as a string to preserve precision"
+          },
+          "price": {
+            "type": "string",
+            "title": "Price",
+            "description": "Optional price for limit-style orders",
+            "nullable": true
+          },
+          "reduce_only": {
+            "type": "boolean",
+            "title": "Reduce Only",
+            "description": "Optional reduce-only flag",
+            "default": false
+          },
+          "post_only": {
+            "type": "boolean",
+            "title": "Post Only",
+            "description": "Optional post-only flag",
+            "default": false
+          },
+          "immediate_or_cancel": {
+            "type": "boolean",
+            "title": "Immediate Or Cancel",
+            "description": "Optional IOC flag",
+            "default": false
+          },
+          "client_order_id": {
+            "type": "integer",
+            "title": "Client Order Id",
+            "description": "Optional client order ID",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "side",
+          "order_type",
+          "base_asset_amount"
+        ],
+        "title": "DriftExecutionPrepareRequest",
+        "description": "Prepare a same-wallet Drift execution intent for client-side signing."
+      },
+      "DriftExecutionRecordResponse": {
+        "properties": {
+          "execution_id": {
+            "type": "string",
+            "title": "Execution Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "auth_wallet_address": {
+            "type": "string",
+            "title": "Auth Wallet Address"
+          },
+          "execution_wallet_address": {
+            "type": "string",
+            "title": "Execution Wallet Address"
+          },
+          "same_wallet_required": {
+            "type": "boolean",
+            "title": "Same Wallet Required",
+            "default": true
+          },
+          "sub_account_id": {
+            "type": "integer",
+            "title": "Sub Account Id"
+          },
+          "order_intent": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Order Intent"
+          },
+          "requires_client_signature": {
+            "type": "boolean",
+            "title": "Requires Client Signature",
+            "default": true
+          },
+          "prepared_transaction": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Prepared Transaction"
+          },
+          "prepared_at": {
+            "type": "string",
+            "title": "Prepared At"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          },
+          "submitted_at": {
+            "type": "string",
+            "title": "Submitted At",
+            "nullable": true
+          },
+          "transaction_signature": {
+            "type": "string",
+            "title": "Transaction Signature",
+            "nullable": true
+          },
+          "last_error": {
+            "type": "string",
+            "title": "Last Error",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "execution_id",
+          "status",
+          "mode",
+          "user_id",
+          "auth_wallet_address",
+          "execution_wallet_address",
+          "sub_account_id",
+          "prepared_at",
+          "expires_at"
+        ],
+        "title": "DriftExecutionRecordResponse",
+        "description": "Prepared or submitted Drift execution record."
+      },
+      "DriftExecutionSubmitRequest": {
+        "properties": {
+          "execution_id": {
+            "type": "string",
+            "title": "Execution Id",
+            "description": "Prepared Drift execution request ID"
+          },
+          "signed_transaction": {
+            "type": "string",
+            "title": "Signed Transaction",
+            "description": "Signed transaction bytes encoded as base64 or base58"
+          },
+          "transaction_encoding": {
+            "type": "string",
+            "title": "Transaction Encoding",
+            "description": "Signed transaction encoding: base64 (default) or base58",
+            "default": "base64"
+          },
+          "skip_preflight": {
+            "type": "boolean",
+            "title": "Skip Preflight",
+            "description": "Whether to skip preflight on submit",
+            "default": false
+          },
+          "max_retries": {
+            "type": "integer",
+            "title": "Max Retries",
+            "description": "Optional Solana send max_retries",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "execution_id",
+          "signed_transaction"
+        ],
+        "title": "DriftExecutionSubmitRequest",
+        "description": "Submit a signed same-wallet Drift transaction."
+      },
+      "DriftExecutionSubmitResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "execution_id": {
+            "type": "string",
+            "title": "Execution Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "transaction_signature": {
+            "type": "string",
+            "title": "Transaction Signature",
+            "nullable": true
+          },
+          "submitted_at": {
+            "type": "string",
+            "title": "Submitted At",
+            "nullable": true
+          },
+          "rpc_url": {
+            "type": "string",
+            "title": "Rpc Url"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "execution_id",
+          "status",
+          "rpc_url"
+        ],
+        "title": "DriftExecutionSubmitResponse",
+        "description": "Submission response for a signed same-wallet Drift transaction."
+      },
+      "DriftExecutionWalletResponse": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "default": "same_wallet"
+          },
+          "auth_wallet_address": {
+            "type": "string",
+            "title": "Auth Wallet Address",
+            "nullable": true
+          },
+          "execution_wallet_address": {
+            "type": "string",
+            "title": "Execution Wallet Address",
+            "nullable": true
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "default": false
+          },
+          "same_wallet_required": {
+            "type": "boolean",
+            "title": "Same Wallet Required",
+            "default": true
+          },
+          "linked_wallet_supported": {
+            "type": "boolean",
+            "title": "Linked Wallet Supported",
+            "default": false
+          },
+          "backend_held_signer_enabled": {
+            "type": "boolean",
+            "title": "Backend Held Signer Enabled",
+            "default": false
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "title": "DriftExecutionWalletResponse",
+        "description": "Resolved Drift execution-wallet status for one authenticated user."
+      },
+      "ExchangeConnectionCreateRequest": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "description": "Optional user ID override. In production this should come from auth.",
+            "nullable": true
+          },
+          "exchange": {
+            "type": "string",
+            "title": "Exchange",
+            "description": "Exchange identifier such as backpack",
+            "default": "backpack"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "Optional user-facing label",
+            "nullable": true
+          },
+          "api_key": {
+            "type": "string",
+            "title": "Api Key",
+            "description": "Exchange API key or public verification key"
+          },
+          "api_secret": {
+            "type": "string",
+            "title": "Api Secret",
+            "description": "Exchange API secret or signing private key"
+          },
+          "trading_enabled": {
+            "type": "boolean",
+            "title": "Trading Enabled",
+            "description": "Whether this stored connection may be used for live execution",
+            "default": false
+          },
+          "read_only": {
+            "type": "boolean",
+            "title": "Read Only",
+            "description": "Whether this stored connection is restricted to read-only usage",
+            "default": true
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "description": "Whether this connection becomes the active connection for its exchange",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "api_key",
+          "api_secret"
+        ],
+        "title": "ExchangeConnectionCreateRequest",
+        "description": "Create a stored exchange connection for a user."
+      },
+      "ExchangeConnectionDeleteResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "connection_id": {
+            "type": "string",
+            "title": "Connection Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "exchange": {
+            "type": "string",
+            "title": "Exchange"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "connection_id",
+          "user_id",
+          "exchange"
+        ],
+        "title": "ExchangeConnectionDeleteResponse",
+        "description": "Delete response for one exchange connection."
+      },
+      "ExchangeConnectionListResponse": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/ExchangeConnectionResponse"
+            },
+            "type": "array",
+            "title": "Connections"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "title": "ExchangeConnectionListResponse",
+        "description": "List response for stored exchange connections."
+      },
+      "ExchangeConnectionResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "exchange": {
+            "type": "string",
+            "title": "Exchange"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "last4": {
+            "type": "string",
+            "title": "Last4"
+          },
+          "fingerprint": {
+            "type": "string",
+            "title": "Fingerprint"
+          },
+          "trading_enabled": {
+            "type": "boolean",
+            "title": "Trading Enabled"
+          },
+          "read_only": {
+            "type": "boolean",
+            "title": "Read Only"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At",
+            "nullable": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "title": "Last Used At",
+            "nullable": true
+          },
+          "revoked_at": {
+            "type": "string",
+            "title": "Revoked At",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "exchange",
+          "label",
+          "last4",
+          "fingerprint",
+          "trading_enabled",
+          "read_only",
+          "is_active"
+        ],
+        "title": "ExchangeConnectionResponse",
+        "description": "Public-safe exchange connection metadata."
+      },
+      "ExchangeConnectionUpdateRequest": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "description": "Optional user ID override. In production this should come from auth.",
+            "nullable": true
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "Optional new label",
+            "nullable": true
+          },
+          "trading_enabled": {
+            "type": "boolean",
+            "title": "Trading Enabled",
+            "description": "Optional live trading toggle",
+            "nullable": true
+          },
+          "read_only": {
+            "type": "boolean",
+            "title": "Read Only",
+            "description": "Optional read-only toggle",
+            "nullable": true
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "description": "Optional active-connection toggle",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "ExchangeConnectionUpdateRequest",
+        "description": "Update non-secret metadata for a stored exchange connection."
+      },
+      "ExecutionAccessExchangeStatus": {
+        "properties": {
+          "exchange": {
+            "type": "string",
+            "title": "Exchange"
+          },
+          "authority_type": {
+            "type": "string",
+            "title": "Authority Type"
+          },
+          "connected": {
+            "type": "boolean",
+            "title": "Connected",
+            "default": false
+          },
+          "execution_ready": {
+            "type": "boolean",
+            "title": "Execution Ready",
+            "default": false
+          },
+          "backend_enabled": {
+            "type": "boolean",
+            "title": "Backend Enabled",
+            "default": false
+          },
+          "active_connection_id": {
+            "type": "string",
+            "title": "Active Connection Id",
+            "nullable": true
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "nullable": true
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "nullable": true
+          },
+          "auth_wallet_address": {
+            "type": "string",
+            "title": "Auth Wallet Address",
+            "nullable": true
+          },
+          "execution_wallet_address": {
+            "type": "string",
+            "title": "Execution Wallet Address",
+            "nullable": true
+          },
+          "trading_enabled": {
+            "type": "boolean",
+            "title": "Trading Enabled",
+            "nullable": true
+          },
+          "read_only": {
+            "type": "boolean",
+            "title": "Read Only",
+            "nullable": true
+          },
+          "same_wallet_required": {
+            "type": "boolean",
+            "title": "Same Wallet Required",
+            "nullable": true
+          },
+          "linked_wallet_supported": {
+            "type": "boolean",
+            "title": "Linked Wallet Supported",
+            "nullable": true
+          },
+          "backend_held_signer_enabled": {
+            "type": "boolean",
+            "title": "Backend Held Signer Enabled",
+            "nullable": true
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exchange",
+          "authority_type"
+        ],
+        "title": "ExecutionAccessExchangeStatus",
+        "description": "Unified frontend-friendly execution access status for one exchange."
+      },
+      "ExecutionAccessResponse": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "nullable": true
+          },
+          "authenticated": {
+            "type": "boolean",
+            "title": "Authenticated",
+            "default": false
+          },
+          "backpack": {
+            "$ref": "#/components/schemas/ExecutionAccessExchangeStatus"
+          },
+          "drift": {
+            "$ref": "#/components/schemas/ExecutionAccessExchangeStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "backpack",
+          "drift"
+        ],
+        "title": "ExecutionAccessResponse",
+        "description": "Unified execution access response for Backpack and Drift."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MemoryCreateRequest": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "description": "User ID that owns the memory"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "Long-term memory text to save"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "description": "Optional memory metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "text"
+        ],
+        "title": "MemoryCreateRequest",
+        "description": "Create a user memory."
+      },
+      "MemoryCreateResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "user_id"
+        ],
+        "title": "MemoryCreateResponse",
+        "description": "Response for creating a user memory."
+      },
+      "MemoryDeleteResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "memory_id": {
+            "type": "string",
+            "title": "Memory Id",
+            "nullable": true
+          },
+          "deleted_all": {
+            "type": "boolean",
+            "title": "Deleted All",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "user_id"
+        ],
+        "title": "MemoryDeleteResponse",
+        "description": "Response for deleting memory records."
+      },
+      "MemoryHealthResponse": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "healthy": {
+            "type": "boolean",
+            "title": "Healthy"
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "healthy",
+          "base_url"
+        ],
+        "title": "MemoryHealthResponse",
+        "description": "Mem0 connectivity status."
+      },
+      "MemoryListResponse": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "memories": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Memories"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "total"
+        ],
+        "title": "MemoryListResponse",
+        "description": "Response for listing or searching user memories."
+      },
+      "ModelInfoResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "nullable": true
+          },
+          "context_length": {
+            "type": "integer",
+            "title": "Context Length"
+          },
+          "input_price": {
+            "type": "number",
+            "title": "Input Price",
+            "description": "Input price per 1M tokens (USD)"
+          },
+          "output_price": {
+            "type": "number",
+            "title": "Output Price",
+            "description": "Output price per 1M tokens (USD)"
+          },
+          "supports_tools": {
+            "type": "boolean",
+            "title": "Supports Tools"
+          },
+          "supports_reasoning": {
+            "type": "boolean",
+            "title": "Supports Reasoning"
+          },
+          "knowledge_cutoff": {
+            "type": "string",
+            "title": "Knowledge Cutoff",
+            "nullable": true
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created",
+            "nullable": true
+          },
+          "modality": {
+            "type": "string",
+            "title": "Modality",
+            "nullable": true
+          },
+          "tokenizer": {
+            "type": "string",
+            "title": "Tokenizer",
+            "nullable": true
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "provider",
+          "context_length",
+          "input_price",
+          "output_price",
+          "supports_tools",
+          "supports_reasoning",
+          "enabled"
+        ],
+        "title": "ModelInfoResponse",
+        "description": "OpenRouter model information"
+      },
+      "ModelStatsResponse": {
+        "properties": {
+          "total_models": {
+            "type": "integer",
+            "title": "Total Models"
+          },
+          "enabled_models": {
+            "type": "integer",
+            "title": "Enabled Models"
+          },
+          "disabled_models": {
+            "type": "integer",
+            "title": "Disabled Models"
+          },
+          "models_with_tools": {
+            "type": "integer",
+            "title": "Models With Tools"
+          },
+          "models_with_reasoning": {
+            "type": "integer",
+            "title": "Models With Reasoning"
+          },
+          "providers": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Providers",
+            "description": "Statistics grouped by provider"
+          },
+          "last_updated": {
+            "type": "string",
+            "title": "Last Updated",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_models",
+          "enabled_models",
+          "disabled_models",
+          "models_with_tools",
+          "models_with_reasoning"
+        ],
+        "title": "ModelStatsResponse",
+        "description": "Model statistics"
+      },
+      "ModelToggleRequest": {
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_id",
+          "enabled"
+        ],
+        "title": "ModelToggleRequest",
+        "description": "Request to enable/disable model"
+      },
+      "ModelsListResponse": {
+        "properties": {
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelInfoResponse"
+            },
+            "type": "array",
+            "title": "Models"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "enabled": {
+            "type": "integer",
+            "title": "Enabled"
+          },
+          "disabled": {
+            "type": "integer",
+            "title": "Disabled"
+          },
+          "last_updated": {
+            "type": "string",
+            "title": "Last Updated",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "models",
+          "total",
+          "enabled",
+          "disabled"
+        ],
+        "title": "ModelsListResponse",
+        "description": "Response for GET /api/models"
+      },
+      "OHLCData": {
+        "properties": {
+          "timestamp": {
+            "type": "integer",
+            "title": "Timestamp",
+            "description": "Unix timestamp in milliseconds"
+          },
+          "open": {
+            "type": "number",
+            "title": "Open"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          },
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "close": {
+            "type": "number",
+            "title": "Close"
+          },
+          "volume": {
+            "type": "number",
+            "title": "Volume"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ],
+        "title": "OHLCData",
+        "description": "OHLC candle data"
+      },
+      "OHLCResponse": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "interval": {
+            "type": "string",
+            "title": "Interval"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/OHLCData"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "interval",
+          "data"
+        ],
+        "title": "OHLCResponse",
+        "description": "Response for GET /api/assets/{symbol}/ohlc"
+      },
+      "OpenRouterSessionCostPhaseResponse": {
+        "properties": {
+          "phase": {
+            "type": "string",
+            "title": "Phase"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens",
+            "default": 0
+          },
+          "estimated_cost_usd": {
+            "type": "number",
+            "title": "Estimated Cost Usd",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "phase"
+        ],
+        "title": "OpenRouterSessionCostPhaseResponse",
+        "description": "One aggregated OpenRouter usage phase inside a chat/session scope."
+      },
+      "OpenRouterSessionCostResponse": {
+        "properties": {
+          "scope_id": {
+            "type": "string",
+            "title": "Scope Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "USD"
+          },
+          "total_calls": {
+            "type": "integer",
+            "title": "Total Calls",
+            "default": 0
+          },
+          "total_input_tokens": {
+            "type": "integer",
+            "title": "Total Input Tokens",
+            "default": 0
+          },
+          "total_output_tokens": {
+            "type": "integer",
+            "title": "Total Output Tokens",
+            "default": 0
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens",
+            "default": 0
+          },
+          "estimated_cost_usd": {
+            "type": "number",
+            "title": "Estimated Cost Usd",
+            "default": 0.0
+          },
+          "model_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Model Ids"
+          },
+          "phases": {
+            "items": {
+              "$ref": "#/components/schemas/OpenRouterSessionCostPhaseResponse"
+            },
+            "type": "array",
+            "title": "Phases"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope_id"
+        ],
+        "title": "OpenRouterSessionCostResponse",
+        "description": "Accumulated OpenRouter usage and estimated cost for one scope_id session."
+      },
+      "RelatedAssetsResponse": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Requested asset symbol"
+          },
+          "primary_category": {
+            "type": "string",
+            "title": "Primary Category",
+            "description": "Primary category used for fallback matching",
+            "nullable": true
+          },
+          "assets": {
+            "items": {
+              "$ref": "#/components/schemas/AssetListItem"
+            },
+            "type": "array",
+            "title": "Assets"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of related assets returned"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "assets",
+          "total"
+        ],
+        "title": "RelatedAssetsResponse",
+        "description": "Response for GET /api/assets/{symbol}/related"
+      },
+      "SupportedTradingAssetsResponse": {
+        "properties": {
+          "assets": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assets",
+            "description": "Configured tracked asset symbols"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of configured tracked assets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "SupportedTradingAssetsResponse",
+        "description": "Response for GET /api/assets/supported"
+      },
+      "TrendingAssetItem": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Asset symbol (e.g., 'BTC')"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Asset name (e.g., 'Bitcoin')"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price",
+            "description": "Current price"
+          },
+          "change_24h": {
+            "type": "number",
+            "title": "Change 24H",
+            "description": "24h price change percentage",
+            "nullable": true
+          },
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categories",
+            "description": "Asset categories"
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank",
+            "description": "Rank position in the trending list"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score",
+            "description": "Composite lightweight ranking score"
+          },
+          "volume_24h": {
+            "type": "number",
+            "title": "Volume 24H",
+            "description": "24h volume used in ranking",
+            "nullable": true
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons",
+            "description": "Human-readable ranking hints"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "name",
+          "price",
+          "rank",
+          "score"
+        ],
+        "title": "TrendingAssetItem",
+        "description": "One ranked trending asset item."
+      },
+      "TrendingAssetsResponse": {
+        "properties": {
+          "assets": {
+            "items": {
+              "$ref": "#/components/schemas/TrendingAssetItem"
+            },
+            "type": "array",
+            "title": "Assets"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of trending assets returned"
+          },
+          "ranking_method": {
+            "type": "string",
+            "title": "Ranking Method",
+            "description": "Short description of the lightweight ranking approach"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assets",
+          "total",
+          "ranking_method"
+        ],
+        "title": "TrendingAssetsResponse",
+        "description": "Response for GET /api/assets/trending"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WalletAuthNonceRequest": {
+        "properties": {
+          "wallet_address": {
+            "type": "string",
+            "title": "Wallet Address",
+            "description": "Solana wallet address that will sign the challenge"
+          }
+        },
+        "type": "object",
+        "required": [
+          "wallet_address"
+        ],
+        "title": "WalletAuthNonceRequest",
+        "description": "Request a mobile wallet sign-in challenge."
+      },
+      "WalletAuthNonceResponse": {
+        "properties": {
+          "wallet_address": {
+            "type": "string",
+            "title": "Wallet Address"
+          },
+          "nonce": {
+            "type": "string",
+            "title": "Nonce"
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "title": "Message"
+          },
+          "issued_at": {
+            "type": "string",
+            "title": "Issued At"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
           }
-        }
-      }
-    },
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer"
+        },
+        "type": "object",
+        "required": [
+          "wallet_address",
+          "nonce",
+          "message",
+          "issued_at",
+          "expires_at"
+        ],
+        "title": "WalletAuthNonceResponse",
+        "description": "Sign-in challenge to be signed by the wallet."
+      },
+      "WalletAuthVerifyRequest": {
+        "properties": {
+          "wallet_address": {
+            "type": "string",
+            "title": "Wallet Address",
+            "description": "Solana wallet address that signed the challenge"
+          },
+          "nonce": {
+            "type": "string",
+            "title": "Nonce",
+            "description": "Challenge nonce returned by the backend"
+          },
+          "signature": {
+            "type": "string",
+            "title": "Signature",
+            "description": "Signed message bytes encoded as base64 or base58"
+          },
+          "signature_encoding": {
+            "type": "string",
+            "title": "Signature Encoding",
+            "description": "Signature encoding: base64 (default) or base58",
+            "default": "base64"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Optional original challenge message for client-side roundtrip validation",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "wallet_address",
+          "nonce",
+          "signature"
+        ],
+        "title": "WalletAuthVerifyRequest",
+        "description": "Verify a signed mobile wallet challenge."
+      },
+      "WalletAuthVerifyResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "wallet_address": {
+            "type": "string",
+            "title": "Wallet Address"
+          },
+          "nonce": {
+            "type": "string",
+            "title": "Nonce"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_at",
+          "user_id",
+          "wallet_address",
+          "nonce",
+          "message"
+        ],
+        "title": "WalletAuthVerifyResponse",
+        "description": "JWT/token response after wallet challenge verification."
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "System",
+      "description": "Platform metadata and backend health endpoints."
+    },
+    {
+      "name": "Auth",
+      "description": "Wallet authentication, nonce generation, verification, and current identity."
+    },
+    {
+      "name": "Agent",
+      "description": "Multimodal uploads, chat, and SSE streaming chat endpoints."
+    },
+    {
+      "name": "Memory",
+      "description": "Mem0-backed memory health and CRUD/search behavior."
+    },
+    {
+      "name": "Exchange Connections",
+      "description": "Execution access state and Backpack credential management."
+    },
+    {
+      "name": "Drift",
+      "description": "Same-wallet Drift execution prepare and submit flow."
+    },
+    {
+      "name": "Assets",
+      "description": "Asset lookup, categories, summaries, trending, related assets, and OHLC."
+    },
+    {
+      "name": "Models",
+      "description": "OpenRouter model catalog, model database operations, and accumulated session cost."
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development"
+    }
+  ]
 }
