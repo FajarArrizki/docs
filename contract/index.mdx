@@ -1,21 +1,53 @@
 ---
 title: "Rabit Contract"
-description: "How contract-side logic fits into the Rabit product vision and execution architecture"
+description: "The Solana program layer for pay-as-you-go AI usage, delegated backend authority, user vaults, and on-chain usage accounting."
+sidebarTitle: "Overview"
 ---
 
-Rabit Contract is the future contract-side layer for wallet-native authorization and more seamless execution patterns.
+Rabit Contract is the Solana program that lets the product charge for AI usage in a wallet-native way.
 
-Today, its role is mostly directional:
+Instead of keeping pricing and authorization fully off-chain, it introduces a contract-side payment and permission layer built around vaults, delegated signers, usage records, and fee accounting.
 
-| Contract direction | Why it matters |
+## What it manages
+
+| Domain | Purpose |
 | --- | --- |
-| session-key style execution | can make execution more seamless than repeated manual signing |
-| delegated authorization patterns | can support safer automation boundaries |
-| stronger Solana-native signing flows | keeps the product aligned with wallet-native behavior |
+| user vaults | hold prepaid SOL for AI usage |
+| delegated signers | allow bounded backend authority with expiry and spending limits |
+| usage records | create an immutable on-chain log of each recorded charge |
+| platform config | stores admin authority, backend authority, fee settings, and pause state |
+| fee vault | accumulates platform fees |
+| model registry | stores optional model metadata and pricing hints |
 
-## Related docs
+## Why it exists
 
-- [Rabit](/)
-- [Quickstart Contract](/getting-started/run/quickstart-contract)
-- [Drift Execution Architecture](/api-reference/drift)
-- [Drift Signer Architecture](/integrations/drift/signer-architecture)
+| Problem | Contract-side answer |
+| --- | --- |
+| AI usage billing is usually opaque and off-chain | usage can be charged against an on-chain vault |
+| backend automation often needs dangerous long-lived authority | delegated signers let the user scope time and spend limits |
+| fee and markup accounting is hard to audit | fee flow becomes part of program state |
+| Solana apps keep rebuilding the same payment pattern | the contract turns it into a reusable primitive |
+
+## Core flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Backend
+    participant Contract
+
+    User->>Contract: initialize_vault
+    User->>Contract: deposit_to_vault
+    User->>Contract: create_delegated_signer
+    Backend->>Contract: record_ai_usage_with_delegation
+    Contract-->>Backend: debit vault, credit fee vault, emit usage record
+```
+
+## Read this next
+
+| If you want... | Read |
+| --- | --- |
+| the real build and test workflow | [/getting-started/run/quickstart-contract](/getting-started/run/quickstart-contract) |
+| architecture and account model | [/contract/architecture](/contract/architecture) |
+| instruction-level reference | [/contract/api-reference](/contract/api-reference) |
+| security analysis | [/contract/security](/contract/security) |

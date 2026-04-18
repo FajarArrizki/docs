@@ -1,0 +1,226 @@
+---
+title: "Contract API Reference"
+description: "Instruction, account, event, and error overview for the Rabit Contract."
+---
+
+## Admin Instructions
+
+### initialize_config
+Initialize platform configuration.
+
+**Parameters:**
+- `platform_fee_bps: u16` - Platform fee (max 2000 = 20%)
+- `default_markup_bps: u16` - Default markup (max 5000 = 50%)
+- `backend_authority: Pubkey` - Backend wallet address
+
+**Accounts:**
+- `config` - PlatformConfig PDA (init)
+- `fee_vault` - Fee vault PDA
+- `authority` - Admin signer
+- `system_program` - System program
+
+**Errors:**
+- `InvalidFeePercentage` - Fee exceeds maximum
+- `InvalidMarkupPercentage` - Markup exceeds maximum
+
+---
+
+### update_platform_fee
+Update platform fee percentage.
+
+**Parameters:**
+- `new_platform_fee_bps: u16` - New fee (max 2000)
+
+**Accounts:**
+- `config` - PlatformConfig PDA
+- `authority` - Admin signer
+
+**Errors:**
+- `NotAuthorized` - Not the authority
+- `InvalidFeePercentage` - Fee exceeds maximum
+
+---
+
+### claim_fees
+Claim collected platform fees.
+
+**Parameters:**
+- `amount: u64` - Amount to claim in lamports
+
+**Accounts:**
+- `config` - PlatformConfig PDA
+- `fee_vault` - Fee vault PDA
+- `authority` - Admin signer
+- `system_program` - System program
+
+**Errors:**
+- `NotAuthorized` - Not the authority
+- `InsufficientFeeBalance` - Not enough fees collected
+
+---
+
+### toggle_pause
+Emergency pause/unpause platform.
+
+**Accounts:**
+- `config` - PlatformConfig PDA
+- `authority` - Admin signer
+
+**Errors:**
+- `NotAuthorized` - Not the authority
+
+---
+
+## Vault Instructions
+
+### initialize_vault
+Create user's vault account.
+
+**Accounts:**
+- `vault` - Vault PDA (init)
+- `owner` - User signer
+- `system_program` - System program
+
+---
+
+### deposit_to_vault
+Deposit SOL to vault.
+
+**Parameters:**
+- `amount: u64` - Amount in lamports
+
+**Accounts:**
+- `vault` - Vault PDA
+- `owner` - User signer
+- `system_program` - System program
+
+**Errors:**
+- `InvalidUsageAmount` - Amount is zero
+- `Unauthorized` - Not vault owner
+
+---
+
+### withdraw_from_vault
+Withdraw SOL from vault.
+
+**Parameters:**
+- `amount: u64` - Amount in lamports
+
+**Accounts:**
+- `vault` - Vault PDA
+- `owner` - User signer
+- `system_program` - System program
+
+**Errors:**
+- `InvalidUsageAmount` - Amount is zero
+- `InsufficientVaultBalance` - Not enough balance
+- `Unauthorized` - Not vault owner
+
+---
+
+## Delegated Signer Instructions
+
+### create_delegated_signer
+Create delegated signer for backend.
+
+**Parameters:**
+- `expiry_duration: i64` - Duration in seconds (60 to 2592000)
+- `spending_limit: u64` - Max spending in lamports
+
+**Accounts:**
+- `delegated_signer` - DelegatedSigner PDA (init)
+- `owner` - User signer
+- `delegate` - Backend pubkey
+- `system_program` - System program
+
+**Errors:**
+- `InvalidDelegationDuration` - Duration out of range
+- `SpendingLimitExceeded` - Limit too high
+
+---
+
+### revoke_delegated_signer
+Revoke delegated signer.
+
+**Accounts:**
+- `delegated_signer` - DelegatedSigner PDA
+- `owner` - User signer
+
+**Errors:**
+- `Unauthorized` - Not the owner
+- `DelegatedSignerAlreadyRevoked` - Already revoked
+
+---
+
+## AI Usage Instructions
+
+### record_ai_usage
+Record AI usage (user signs).
+
+**Parameters:**
+- `base_cost: u64` - Base cost in lamports
+- `usage_type: String` - Type: "text", "image", "audio", "video"
+- `markup_bps: Option<u16>` - Optional markup override
+
+**Accounts:**
+- `usage_record` - AiUsageRecord PDA (init)
+- `vault` - User's Vault PDA
+- `config` - PlatformConfig PDA
+- `fee_vault` - Fee vault PDA
+- `owner` - Vault owner
+- `user` - User signer
+- `system_program` - System program
+
+**Errors:**
+- `Unauthorized` - Platform paused or not owner
+- `InvalidUsageAmount` - Amount is zero
+- `InsufficientVaultBalance` - Not enough balance
+- `InvalidMarkupPercentage` - Markup too high
+
+---
+
+### record_ai_usage_with_delegation
+Record AI usage (backend signs).
+
+**Parameters:**
+- `base_cost: u64` - Base cost in lamports
+- `usage_type: String` - Type: "text", "image", "audio", "video"
+- `markup_bps: Option<u16>` - Optional markup override
+
+**Accounts:**
+- `usage_record` - AiUsageRecord PDA (init)
+- `vault` - User's Vault PDA
+- `delegated_signer` - DelegatedSigner PDA
+- `config` - PlatformConfig PDA
+- `fee_vault` - Fee vault PDA
+- `delegate` - Backend signer
+- `system_program` - System program
+
+**Errors:**
+- `Unauthorized` - Platform paused
+- `DelegatedSignerNotActive` - Signer revoked
+- `DelegatedSignerExpired` - Signer expired
+- `SpendingLimitExceeded` - Over limit
+- `InvalidUsageAmount` - Amount is zero
+- `InsufficientVaultBalance` - Not enough balance
+- `InvalidMarkupPercentage` - Markup too high
+
+---
+
+## Events
+
+### AiUsageRecorded
+Emitted when AI usage is recorded.
+
+**Fields:**
+- `user: Pubkey` - User account
+- `vault: Pubkey` - Vault account
+- `delegated_signer: Option<Pubkey>` - Delegation used
+- `usage_type: String` - Usage type
+- `base_cost: u64` - Base cost
+- `markup_bps: u16` - Markup percentage
+- `markup_amount: u64` - Markup amount
+- `platform_fee_bps: u16` - Platform fee percentage
+- `platform_fee_amount: u64` - Platform fee amount
+- `total_charged: u64` - Total charged
+- `timestamp: i64` - Unix timestamp

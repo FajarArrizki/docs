@@ -1,0 +1,82 @@
+---
+title: "Deployment"
+description: "Deployment workflow for localnet, devnet, and production environments."
+---
+
+## Prerequisites
+
+- Solana CLI installed
+- Anchor CLI installed
+- Wallet with sufficient SOL
+- `.env` configured
+
+## Step-by-Step Deployment
+
+### 1. Configure Environment
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Set:
+- `AUTHORITY_PUBKEY` - Your admin wallet
+- `BACKEND_AUTHORITY_PUBKEY` - Backend wallet
+- `PLATFORM_FEE_BPS` - Platform fee (500 = 5%)
+- `DEFAULT_MARKUP_BPS` - Default markup (500 = 5%)
+
+### 2. Build Program
+
+```bash
+anchor build
+```
+
+### 3. Deploy to Devnet
+
+```bash
+./scripts/deploy.sh devnet
+```
+
+### 4. Initialize Config
+
+```bash
+./scripts/initialize-config.sh
+```
+
+### 5. Verify Deployment
+
+```bash
+solana program show <PROGRAM_ID>
+```
+
+## Mainnet Deployment
+
+### Additional Steps for Mainnet:
+
+1. **Security Audit** - Get external audit
+2. **Test on Devnet** - Thoroughly test all features
+3. **Backup Keys** - Secure backup of all keypairs
+4. **Multi-sig** - Consider using multi-sig for authority
+5. **Monitoring** - Setup monitoring and alerts
+
+### Deploy to Mainnet:
+
+```bash
+./scripts/deploy.sh mainnet-beta
+```
+
+## Post-Deployment
+
+1. Verify program ID
+2. Initialize platform config
+3. Test all instructions
+4. Monitor transactions
+5. Setup alerts
+
+## Rollback Plan
+
+If issues occur:
+1. Use `toggle_pause()` to pause operations
+2. Investigate issue
+3. Deploy fix if needed
+4. Resume operations

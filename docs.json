@@ -131,9 +131,59 @@
         "tab": "Rabit Contract",
         "groups": [
           {
-            "group": " ",
+            "group": "Overview",
             "pages": [
               "contract/index"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "expanded": false,
+            "pages": [
+              "contract/architecture",
+              "contract/architecture-spec",
+              "contract/contract-details",
+              "contract/critical-decisions"
+            ]
+          },
+          {
+            "group": "API and Instructions",
+            "expanded": false,
+            "pages": [
+              "contract/api-reference",
+              "contract/instruction-spec"
+            ]
+          },
+          {
+            "group": "Security",
+            "expanded": false,
+            "pages": [
+              "contract/security",
+              "contract/threat-model",
+              "contract/critical-issues",
+              "contract/security-checklist"
+            ]
+          },
+          {
+            "group": "Testing",
+            "expanded": false,
+            "pages": [
+              "contract/testing"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "expanded": false,
+            "pages": [
+              "contract/deployment",
+              "contract/docker"
+            ]
+          },
+          {
+            "group": "Development",
+            "expanded": false,
+            "pages": [
+              "contract/development"
             ]
           }
         ]
@@ -168,14 +218,14 @@
   },
   "contextual": {
     "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
   }
 }
