@@ -12,6 +12,7 @@ Use it to understand:
 - how frontend and mobile clients talk to the trading agent
 - why uploads, chat, and streaming are split into separate flows
 - how runtime context travels with each request
+- how the pipeline now injects specialist-like node observations before the final answer
 - how OpenRouter cost is accumulated at session scope
 
 Use the OpenAPI endpoint pages in this tab for exact request and response schema.
@@ -27,9 +28,14 @@ flowchart TD
     C --> F[TradingAgent runtime]
     D --> F
     F --> G[Intent router]
-    F --> H[Tool runtime]
-    F --> I[Memory and context services]
-    F --> J[OpenRouter session cost ledger]
+    G --> H[Dependency-aware node planner]
+    H --> I[Graph executor]
+    I --> J[Specialist-like nodes]
+    J --> K[Response composer]
+    K --> L[Tool runtime]
+    K --> M[Memory and context services]
+    K --> N[OpenRouter session cost ledger]
+    J --> O[Pipeline artifact store]
 ```
 
 ## Why the agent API is split this way
@@ -88,6 +94,25 @@ Each request can also include runtime context such as:
 
 This keeps the product adaptive without forcing the backend to infer everything from plain text alone.
 
+## Pipeline-aware request model
+
+The agent API is still exposed as one entrypoint, but the runtime behind it is no longer flat.
+
+Before the final answer is generated, the backend can now run a composable node plan such as:
+
+- `chart_analysis`
+- `market_snapshot`
+- `research_snapshot`
+- `portfolio_snapshot`
+- `execution_snapshot`
+- `memory_snapshot`
+- `risk_review`
+- `general_fallback`
+- `clarification_prep`
+- `response_composer`
+
+This matters because the final answer is now shaped by backend-generated observations, not only by whatever the model decides to call during the last turn.
+
 ## Chat flow
 
 ```mermaid
@@ -95,11 +120,16 @@ sequenceDiagram
     participant App as Client app
     participant API as Agent API
     participant Router as Intent router
+    participant Planner as Node planner
     participant Agent as TradingAgent
+    participant Nodes as Pipeline nodes
     participant Tools as Tool runtime
 
     App->>API: chat request + runtime context
     API->>Router: classify intent and tool groups
+    Router->>Planner: build node plan
+    Planner->>Nodes: run bounded node graph
+    Nodes-->>Agent: trusted observations plus posture hints
     API->>Agent: execute with filtered tools
     Agent->>Tools: call tools when needed
     Tools-->>Agent: structured tool results
@@ -120,10 +150,28 @@ sequenceDiagram
     Agent-->>API: thinking_summary
     Agent-->>API: assistant_delta
     Agent-->>API: plan or hint
+    Agent-->>API: chart_screenshot when chart workflows produce one
     Agent-->>API: more assistant_delta
     Agent-->>API: done
     API-->>App: SSE event stream
 ```
+
+## What the pipeline contributes now
+
+Two node families are especially important for the final API behavior:
+
+| Node | What it contributes to the final answer |
+| --- | --- |
+| `risk_review` | invalidation quality, confluence strength, news fragility, execution readiness, and normalized risk framing |
+| `response_composer` | primary evidence, supporting evidence, conflict flags, resolved symbol/timeframe, and recommended answer posture |
+
+That means the final assistant output is now more intentionally shaped:
+
+- `direct` when evidence is clean
+- `balanced` when some tension exists but the setup is still usable
+- `cautious` when conflict or fragility is significant
+- `risk_first` when downside framing should dominate
+- `uncertainty_aware` when fallback behavior is safer than commitment
 
 ## Why SSE and WebSocket are not the same thing
 
@@ -169,6 +217,12 @@ That matters most for chart-write turns because the backend can now keep:
 
 This makes it easier for the frontend or later tooling to reopen what the agent actually drew, instead of treating chart screenshots as one-turn-only ephemeral state.
 
+The main API surface for that persistence is:
+
+- `GET /api/agent/artifacts/{scope_id}`
+
+That route exists for product surfaces that want to reopen or inspect what a prior chart-write turn actually produced.
+
 ## Design principles
 
 The agent API is designed around product behavior rather than database resources.
@@ -179,6 +233,7 @@ Key choices:
 - streaming and non-streaming separated by transport
 - uploads separated from chat execution
 - request context treated as first-class runtime input
+- pipeline node observations treated as first-class backend evidence
 - session cost exposed as a frontend-friendly aggregate
 
 ## Exact endpoint details

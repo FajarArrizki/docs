@@ -33,6 +33,13 @@ In practice, the API is used by frontend and mobile clients to:
 - fetch tracked asset and OHLC data
 - inspect model and session-cost state
 
+The agent surface also now carries more structured backend reasoning than before:
+
+- bounded node execution before the final answer
+- explicit risk framing
+- explicit response posture guidance
+- persisted chart-write artifacts per `scope_id`
+
 ## Endpoint groups
 
 | Group | Purpose |
@@ -48,6 +55,19 @@ In practice, the API is used by frontend and mobile clients to:
 | News | asset-specific news snapshot plus live news WebSocket feed |
 | Models | OpenRouter model catalog and session-cost tracking |
 | Streaming | SSE agent output plus WebSocket price and news transport |
+
+## What changed in the current backend generation
+
+The current generation of the backend API is more pipeline-aware than earlier versions.
+
+That means:
+
+- the agent entrypoint is still stable for clients
+- but the runtime behind it now uses dependency-aware node planning
+- risk review is now a first-class pre-response step
+- final answer composition now includes conflict detection and recommended posture
+
+So the API contract stayed simple while the runtime behavior got more structured.
 
 ## How the backend is shaped
 
