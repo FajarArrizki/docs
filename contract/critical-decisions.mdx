@@ -1,0 +1,340 @@
+---
+title: "Critical Decisions"
+description: "Design trade-offs and important architecture decisions for the Rabit Contract."
+---
+
+## Finalized Decisions
+
+### 1. State Layout
+- **PlatformConfig**: Singleton, admin-controlled
+- **ModelRegistry**: 1 model = 1 account (not packed)
+- **Vault**: 1 per user (not per model, not platform-wide)
+- **DelegatedSigner**: Per user-delegate pair
+- **AiUsageRecord**: Per usage transaction (full audit trail)
+
+### 2. Fee Flow
+- **When**: Fees collected during `record_ai_usage()` (not at withdrawal)
+- **Where**: Platform fee → fee_vault, markup stays in user vault
+- **Who**: Only admin can update fees and claim from fee_vault
+- **Type**: Basis points (BPS), not flat or per-model
+
+### 3. Delegation Security
+- **Scope**: Per-user, not per-model, not global
+- **Actions**: Can only record AI usage, cannot deposit/withdraw/revoke
+- **Expiry**: User-set, checked on every usage
+- **Limits**: Spending limit, cumulative tracking
+- **Revocation**: Instant, owner-only
+
+### 4. Vault Semantics
+- **Type**: User vault (prepaid balance)
+- **Withdraw**: Owner-only, rent-protected, partial allowed
+- **Fee Source**: All costs from user's vault
+
+### 5. Usage Accounting
+- **Units**: tokens_used (primary), usage_type (secondary)
+- **Authority**: User or delegated backend
+- **Source of Truth**: On-chain records
+- **Deduplication**: Timestamp-based PDA seeds
+
+---
+
+## Warning:  Potential Issues & Limitations
+
+### Issue 1: Backend Trust Model
+**Problem**: Backend is trusted oracle for `base_cost` and `tokens_used`
+- Backend could submit inflated costs
+- No on-chain verification of provider pricing
+- Users must trust backend or audit off-chain
+
+**Mitigation**:
+- Admin controls `backend_authority` (can revoke if misbehavior)
+- Users can audit usage records vs provider billing
+- Transparent on-chain records enable accountability
+
+**Future Enhancement**: Oracle integration for provider pricing verification
+
+---
+
+### Issue 2: Duplicate Usage Prevention
+**Problem**: Only prevents duplicates within same second
+- Backend could submit multiple records in different seconds
+- No sequence number or nonce in PDA seed
+
+**Current Protection**: Timestamp in PDA seed
+**Limitation**: Multiple submissions possible across seconds
+
+**Mitigation**:
+- Backend's responsibility to deduplicate off-chain
+- Usage records are immutable (audit trail exists)
+
+**Future Enhancement**: Add nonce or sequence number to PDA seed
+
+---
+
+### Issue 3: Delegation Race Condition
+**Problem**: Revocation is instant, but in-flight transactions may succeed
+- User revokes delegation
+- Backend's pending transaction lands after revocation
+- Transaction succeeds if submitted before revocation
+
+**Current Protection**: None (inherent to blockchain finality)
+
+**Mitigation**:
+- Backend should check delegation status before submitting
+- Short-lived delegations reduce window
+- Spending limits cap maximum damage
+
+**Future Enhancement**: Grace period or pending revocation queue
+
+---
+
+### Issue 4: Markup Revenue Not Extracted
+**Problem**: Markup stays in user's vault (not transferred to backend)
+- Backend must settle off-chain with provider
+- On-chain record shows markup collected, but funds not moved
+
+**Current Design**: Intentional (backend handles off-chain settlement)
+
+**Rationale**:
+- Reduces on-chain transfers (lower gas)
+- Backend pays provider directly (off-chain)
+- Platform only extracts platform fee
+
+**Trade-off**: Backend must track off-chain settlement
+
+---
+
+### Issue 5: No Per-Model Delegation
+**Problem**: Delegation applies to all models
+- User delegates, backend can use any model
+- No granular control over which models delegate can access
+
+**Current Limitation**: Delegation is vault-wide
+
+**Mitigation**:
+- Spending limits cap total exposure
+- Short expiry reduces risk window
+
+**Future Enhancement**: Add `allowed_models: Vec<String>` to DelegatedSigner
+
+---
+
+### Issue 6: High-Frequency Usage Cost
+**Problem**: One account per usage (expensive for high-frequency)
+- Each usage creates new account (rent + gas)
+- Not suitable for micro-transactions
+
+**Current Design**: Full audit trail (one account per usage)
+
+**Trade-off**: Transparency vs cost
+
+**Future Enhancement**:
+- Batch aggregation (off-chain)
+- Periodic settlement with merkle proofs
+- Usage counters instead of individual records
+
+---
+
+### Issue 7: No Model Owner Revenue Split
+**Problem**: All platform fees go to admin
+- Model owners don't receive revenue share
+- No incentive for model providers to register
+
+**Current Limitation**: Single fee recipient (admin)
+
+**Future Enhancement**:
+- Add `model_owner` field to ModelRegistry
+- Add `model_owner_fee_bps` configuration
+- Split platform fee between admin and model owner
+- Separate claim functions per model owner
+
+---
+
+### Issue 8: Backend Authority Not Enforced
+**Problem**: `backend_authority` is informational only
+- Any delegated signer can record usage
+- No enforcement that delegate == backend_authority
+
+**Current Design**: Flexible (allows multiple backends)
+
+**Trade-off**: Flexibility vs control
+
+**Future Enhancement**: Add optional strict mode:
+```rust
+require!(delegate == config.backend_authority, RabitError::NotAuthorizedBackend);
+```
+
+---
+
+### Issue 9: No Usage Record Deletion
+**Problem**: Usage records are permanent
+- Cannot delete incorrect records
+- Cannot reclaim rent from old records
+
+**Current Limitation**: Immutable records
+
+**Mitigation**: Backend should validate before submitting
+
+**Future Enhancement**: Add close instruction with proper authorization
+
+---
+
+### Issue 10: Clock-Based Deduplication
+**Problem**: Relies on Solana clock for PDA uniqueness
+- If clock goes backwards: Could create duplicate PDA
+- Unlikely but theoretically possible
+
+**Current Protection**: Solana consensus-based clock (hard to manipulate)
+
+**Risk Level**: Low (not a practical concern)
+
+**Future Enhancement**: Add monotonic counter instead of timestamp
+
+---
+
+## Security:  Security Strengths
+
+### Checked Arithmetic
+- All math operations use `checked_add()`, `checked_sub()`, etc.
+- Prevents overflow/underflow attacks
+
+### PDA Constraints
+- All accounts use proper seed derivation
+- Prevents account substitution attacks
+
+### Rent Protection
+- Vault withdrawals maintain rent-exempt minimum
+- Prevents account closure attacks
+
+### Authority Verification
+- `has_one` constraints on all privileged operations
+- Prevents unauthorized access
+
+### Pause Mechanism
+- Emergency stop for AI usage recording
+- Admin-controlled, doesn't affect user funds
+
+### Immutable Records
+- Usage records cannot be modified after creation
+- Provides audit trail
+
+---
+
+## Pre-Deployment Checklist
+
+### Critical Configurations
+- [ ] Set reasonable `platform_fee_bps` (recommend: 500 = 5%)
+- [ ] Set reasonable `default_markup_bps` (recommend: 500 = 5%)
+- [ ] Configure trusted `backend_authority` wallet
+- [ ] Fund backend wallet with SOL for gas fees
+- [ ] Register initial models in ModelRegistry
+
+### Backend Requirements
+- [ ] Implement accurate `base_cost` calculation from provider pricing
+- [ ] Implement deduplication logic (prevent double-charging)
+- [ ] Implement delegation status checking before submission
+- [ ] Implement vault balance checking before submission
+- [ ] Implement usage tracking and reconciliation
+
+### User Education
+- [ ] Document delegation risks (spending limits, expiry)
+- [ ] Document vault deposit/withdrawal process
+- [ ] Document usage record auditing
+- [ ] Provide balance monitoring tools
+- [ ] Provide delegation management UI
+
+### Monitoring & Alerts
+- [ ] Monitor fee_vault balance (platform revenue)
+- [ ] Monitor delegation expirations (notify users)
+- [ ] Monitor vault low balances (notify users)
+- [ ] Monitor usage anomalies (detect backend issues)
+- [ ] Monitor failed transactions (investigate errors)
+
+---
+
+## Recommended Improvements (Priority Order)
+
+### High Priority
+1. **Add sequence number to usage PDA seed** (prevent duplicates)
+2. **Enforce backend_authority in delegation usage** (stricter control)
+3. **Add delegation update instruction** (increase spending limit)
+
+### Medium Priority
+4. **Add usage record close instruction** (reclaim rent)
+5. **Add per-model delegation restrictions** (granular control)
+6. **Add model owner revenue split** (incentivize model providers)
+
+### Low Priority
+7. **Add batch usage aggregation** (reduce costs)
+8. **Add oracle integration** (verify provider pricing)
+9. **Add grace period for revocation** (reduce race condition)
+
+---
+
+## Economic Model Summary
+
+### Revenue Streams
+1. **Platform Fee**: 5% of (base_cost + markup) → fee_vault → admin
+2. **Markup**: 5% of base_cost → stays in vault → backend (off-chain settlement)
+
+### Cost Structure (Example: 1000 lamports base cost)
+```
+User pays:     1102 lamports (from vault)
+├─ Base:       1000 lamports (backend pays provider off-chain)
+├─ Markup:       50 lamports (backend's revenue)
+└─ Platform:     52 lamports (platform's revenue, extracted to fee_vault)
+```
+
+### User Economics
+- **Prepaid Model**: Users deposit SOL to vault
+- **Pay-as-you-go**: Charged per usage
+- **Transparent Pricing**: All costs visible on-chain
+- **No Lock-in**: Can withdraw anytime (rent-protected)
+
+### Backend Economics
+- **Revenue**: Markup (5% of base cost)
+- **Costs**: Provider costs (base_cost) + gas fees
+- **Settlement**: Off-chain with providers
+- **Risk**: Must front gas fees, recoups from markup
+
+### Platform Economics
+- **Revenue**: Platform fee (5% of base + markup)
+- **Costs**: Smart contract maintenance, infrastructure
+- **Extraction**: Admin claims from fee_vault
+- **Transparency**: All fees tracked on-chain
+
+---
+
+## Success Metrics
+
+### Technical Metrics
+- Transaction success rate > 99%
+- Average confirmation time < 2 seconds
+- Gas cost per usage < 0.001 SOL
+- Zero security incidents
+
+### Business Metrics
+- Total value locked (TVL) in vaults
+- Total fees collected (platform revenue)
+- Total usage volume (tokens processed)
+- Active users (vaults with balance > 0)
+- Active delegations (non-expired, non-revoked)
+
+### User Metrics
+- Average vault balance
+- Average delegation duration
+- Average spending per user
+- Vault deposit/withdrawal frequency
+- Usage record audit frequency
+
+---
+
+## Notes
+
+This document reflects the current implementation as of the architecture review. All decisions are based on the existing codebase in `src/features/`.
+
+For detailed implementation, see:
+- `ARCHITECTURE_SPEC.md` - Full technical specification
+- `SECURITY.md` - Security best practices
+- `API.md` - API reference
+- `DEPLOYMENT.md` - Deployment guide

@@ -1,26 +1,79 @@
 ---
 title: "Quickstart Contract"
-description: "The contract quickstart track for Rabit. This page is intentionally a placeholder while contract-side integration is still being finalized."
+description: "Build, test, and deploy the Rabit Contract using the real Anchor and Docker workflow from the contract repo."
 sidebarTitle: "Contract"
 ---
 
-This quickstart track is reserved for the Rabit contract layer.
+This quickstart follows the actual contract repo workflow.
 
-For now, this page is intentionally minimal while the contract-side flow is still being finalized.
+## What you need
 
-Today, the most important contract-facing idea in Rabit is the future direction around:
+| Requirement | Why it matters |
+| --- | --- |
+| Rust toolchain | compile the Solana program |
+| Solana CLI | local validator, wallet management, and deployment |
+| Anchor CLI | build, test, and deploy the program |
+| Node.js and npm | run TypeScript tests and project scripts |
+| Docker (optional) | use the containerized development workflow |
 
-- wallet-native authorization
-- session-key style execution
-- safer delegated execution models for Solana-native trading flows
+## Main repo commands
 
-## Current status
+| Goal | Command |
+| --- | --- |
+| install JS dependencies | `npm install` |
+| build program | `anchor build` or `npm run build` |
+| run tests | `anchor test` or `npm run test` |
+| run tests without validator | `anchor test --skip-local-validator` or `npm run test:unit` |
+| deploy to devnet | `anchor deploy --provider.cluster devnet` or `npm run deploy:devnet` |
+| deploy to mainnet | `anchor deploy --provider.cluster mainnet-beta` or `npm run deploy:mainnet` |
 
-- contract-side architecture is documented
-- production quickstart is not finalized yet
+## Standard local path
 
-## Recommended next reading
+```mermaid
+flowchart LR
+    A[Install dependencies] --> B[anchor build]
+    B --> C[anchor test]
+    C --> D[deploy to devnet or integrate locally]
+```
 
-- [Rabit Contract](/contract)
-- [Drift Signer Architecture](/integrations/drift/signer-architecture)
-- [Drift API Architecture](/api-reference/drift)
+### 1. Install dependencies
+
+```bash
+npm install
+cargo build
+```
+
+### 2. Build the program
+
+```bash
+anchor build
+```
+
+### 3. Run the tests
+
+```bash
+anchor test
+```
+
+### 4. Deploy when ready
+
+```bash
+anchor deploy --provider.cluster devnet
+```
+
+## Docker path
+
+| Goal | Command |
+| --- | --- |
+| build containers | `docker-compose build` |
+| start containers | `docker-compose up -d` |
+| stop containers | `docker-compose down` |
+| open shell | `docker-compose exec solana-dev /bin/bash` |
+| view logs | `docker-compose logs -f` |
+
+## Read this next
+
+- [/contract/index](/contract/index)
+- [/contract/architecture](/contract/architecture)
+- [/contract/deployment](/contract/deployment)
+- [/contract/security](/contract/security)

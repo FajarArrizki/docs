@@ -1,0 +1,728 @@
+---
+title: "Critical Issues"
+description: "Security issues that require attention before production deployment."
+---
+
+Security and design issues identified in the Rabit Contract with recommended fixes.
+
+---
+
+## Issue Summary
+
+| Issue | Current state | Why it matters |
+| --- | --- | --- |
+| Usage PDA collision risk | Resolved | Prevents duplicate-record collisions under heavy usage. |
+| Backend authority enforcement | Resolved | Ensures only the intended backend can spend through delegation. |
+| Model registry ambiguity | Open design decision | Controls how much pricing and model validation stays on-chain. |
+
+## Issue 1: Usage PDA Timestamp Collision Risk
+
+### Status
+Resolved
+
+### Current Implementation
+```rust
+seeds = [AI_USAGE_SEED, vault.key(), &vault.usage_sequence.to_le_bytes()]
+```
+
+### Problems (RESOLVED)
+1. ~~**Same-slot collision**: 2 transactions in same slot → same timestamp → PDA collision~~
+2. ~~**Replay scenario**: Theoretical clock manipulation~~
+3. ~~**High-frequency limitation**: Only 1 usage per vault per second~~
+
+### Risk Level
+Resolved
+
+### Implementation Status
+Completed
+
+**Solution Implemented**: Option A (Sequence Counter)
+
+```rust
+// Added to Vault state
+pub struct Vault {
+    // ... existing fields
+    pub usage_sequence: u64,  // Monotonic counter
+}
+
+// Usage PDA seeds updated
+seeds = [
+    AI_USAGE_SEED,
+    vault.key(),
+    &vault.usage_sequence.to_le_bytes()
+]
+
+// Increment on each usage
+vault.usage_sequence = vault.usage_sequence.checked_add(1).unwrap();
+```
+
+**Benefits**:
+- No collision possible (monotonic)
+- Supports high-frequency usage
+- Simple implementation
+- Also solves replay protection (Issue #5)
+
+### Testing Status
+Pending
+
+---
+
+## Issue 2: Backend Authority Not Enforced
+
+### Status
+Resolved
+
+### Current Implementation
+```rust
+pub fn record_ai_usage_with_delegation(
+    ctx: Context<RecordAiUsageWithDelegation>,
+    // ...
+) -> Result<()> {
+    let config = &ctx.accounts.config;
+
+    // FIXED: Backend authority now enforced
+    require!(
+        ctx.accounts.delegate.key() == config.backend_authority,
+        RabitError::NotAuthorizedBackend
+    );
+
+    // ... rest of logic
+}
+```
+
+### Problems (RESOLVED)
+1. ~~**Any delegate can record usage**: Not just backend_authority~~
+2. ~~**Delegation abuse**: Malicious delegate can drain vault~~
+3. ~~**Trust model unclear**: Who is trusted to record usage?~~
+
+### Risk Level
+Resolved
+
+### Implementation Status
+Completed
+
+**Solution Implemented**: Option A (Strict Backend Enforcement)
+
+```rust
+pub fn record_ai_usage_with_delegation(
+    ctx: Context<RecordAiUsageWithDelegation>,
+    // ...
+) -> Result<()> {
+    let config = &mut ctx.accounts.config;
+
+    // CRITICAL: Enforce backend authority
+    require!(
+        ctx.accounts.delegate.key() == config.backend_authority,
+        RabitError::NotAuthorizedBackend
+    );
+
+    // ... rest of logic
+}
+```
+
+**Benefits**:
+- Only official backend can record
+- Clear trust model
+- Prevents delegation abuse
+- Secure by default
+
+### Testing Status
+Pending
+
+---
+
+## Issue 3: Model Registry Optional = Ambiguity
+
+### Current Implementation
+```rust
+// Model registry is optional
+pub model_registry: Option<Account<'info, ModelRegistry>>
+
+// Only checked if provided
+if let Some(model_registry) = &mut ctx.accounts.model_registry {
+    require!(model_registry.is_active);
+}
+```
+
+### Problems
+1. **Unregistered models allowed**: Backend can use any model_id
+2. **Pricing inconsistency**: No on-chain pricing verification
+3. **Fake model IDs**: Backend can claim any model
+4. **Trust backend completely**: No validation layer
+
+### Risk Level
+Medium
+
+### Impact
+- Backend can inflate costs (claim expensive model)
+- No audit trail for model usage
+- Inconsistent pricing across users
+- Hard to detect abuse
+
+### Recommended Fix
+
+#### Option A: Strict Mode (Recommended for Production)
+```rust
+// Make model_registry required
+pub model_registry: Account<'info, ModelRegistry>
+
+// Always validate
+require!(model_registry.is_active, RabitError::ModelNotActive);
+require!(model_registry.is_verified, RabitError::ModelNotVerified);
+
+// Optional: Enforce pricing
+require!(
+    base_cost <= model_registry.base_cost_per_token * tokens_used,
+    RabitError::CostExceedsModelPricing
+);
+```
+
+**Pros**:
+- All models must be registered
+- Pricing can be validated
+- Clear audit trail
+
+**Cons**:
+- Less flexible for new models
+- Admin must register all models
+
+#### Option B: Hybrid Mode with Flags
+```rust
+// Add to AiUsageRecord
+pub struct AiUsageRecord {
+    // ... existing fields
+    pub is_verified_model: bool,  // Was model registry used?
+    pub pricing_verified: bool,   // Was pricing checked?
+}
+
+// In instruction
+let (is_verified, pricing_ok) = if let Some(registry) = &model_registry {
+    require!(registry.is_active);
+    let pricing_ok = base_cost <= registry.base_cost_per_token * tokens_used;
+    (true, pricing_ok)
+} else {
+    (false, false)  // Unverified usage
+};
+
+usage_record.is_verified_model = is_verified;
+usage_record.pricing_verified = pricing_ok;
+```
+
+**Pros**:
+- Flexible (allows unregistered)
+- Clear verification status
+- Auditable
+
+**Cons**:
+- Users must check verification flags
+- More complex logic
+
+#### Option C: Configurable Mode
+```rust
+// Add to PlatformConfig
+pub struct PlatformConfig {
+    // ... existing fields
+    pub require_model_registry: bool,  // Admin configurable
+}
+
+// In instruction
+if config.require_model_registry {
+    require!(
+        ctx.accounts.model_registry.is_some(),
+        RabitError::ModelRegistryRequired
+    );
+}
+```
+
+**Pros**:
+- Admin controls strictness
+- Can start flexible, tighten later
+
+**Cons**:
+- Inconsistent behavior over time
+
+### Implementation Priority: **HIGH**
+
+**Recommended**: Option B (Hybrid with Flags) for flexibility + Option A (Strict) as future upgrade
+
+---
+
+## Issue 4: Fee Vault = Single Sink (No Revenue Split)
+
+### Current Implementation
+```rust
+// All platform fees go to single vault
+transfer(/* ... */, fee_vault, platform_fee)?;
+
+// Only admin can claim
+pub fn claim_fees(ctx: Context<ClaimFees>, amount: u64)
+```
+
+### Problems
+1. **No model owner revenue**: Model providers get nothing
+2. **No backend split**: Backend only gets markup (not extracted)
+3. **Centralized revenue**: All goes to platform
+4. **Not scalable**: Hard to add revenue sharing later
+
+### Risk Level
+Low  (Design limitation, not security issue)
+
+### Impact
+- Model providers have no incentive to register
+- Backend must handle markup settlement off-chain
+- No on-chain revenue distribution
+
+### Recommended Fix
+
+#### Option A: Multi-Recipient Fee Split
+```rust
+// Add to ModelRegistry
+pub struct ModelRegistry {
+    // ... existing fields
+    pub model_owner: Pubkey,           // Model provider wallet
+    pub model_owner_fee_bps: u16,      // Their share (e.g., 200 = 2%)
+}
+
+// In record_ai_usage
+let platform_fee = calculate_platform_fee(cost_after_markup);
+let model_owner_fee = calculate_bps(platform_fee, registry.model_owner_fee_bps);
+let platform_net_fee = platform_fee - model_owner_fee;
+
+// Transfer to model owner
+transfer(/* ... */, registry.model_owner, model_owner_fee)?;
+
+// Transfer to platform
+transfer(/* ... */, fee_vault, platform_net_fee)?;
+```
+
+**Pros**:
+- Model owners get revenue share
+- Incentivizes model registration
+- Fair distribution
+
+**Cons**:
+- More transfers per usage (higher gas)
+- Complex accounting
+
+#### Option B: Separate Fee Vaults
+```rust
+// Per-model fee vault
+seeds = [FEE_VAULT_SEED, model_id.as_bytes()]
+
+// Model owner claims from their vault
+pub fn claim_model_fees(
+    ctx: Context<ClaimModelFees>,
+    model_id: String,
+    amount: u64,
+) -> Result<()>
+```
+
+**Pros**:
+- Clear separation
+- Model owners control claims
+
+**Cons**:
+- Many fee vaults (rent cost)
+- Complex management
+
+#### Option C: Deferred Settlement (Off-Chain)
+```rust
+// Track in events, settle off-chain
+emit!(ModelOwnerFeeAccrued {
+    model_id,
+    model_owner,
+    amount,
+    timestamp,
+});
+
+// Periodic settlement by admin
+pub fn settle_model_owner_fees(/* ... */)
+```
+
+**Pros**:
+- Lower gas costs
+- Flexible settlement
+
+**Cons**:
+- Requires off-chain tracking
+- Trust in admin for settlement
+
+### Implementation Priority: **MEDIUM** Medium:
+
+**Recommended**: Option C (Deferred Settlement) for v1, Option A (Direct Split) for v2
+
+---
+
+## Issue 5: No Replay Protection (Economic Layer)
+
+### Current Implementation
+```rust
+// Only timestamp prevents duplicates
+seeds = [AI_USAGE_SEED, vault.key(), &timestamp.to_le_bytes()]
+
+// No uniqueness check on:
+// - model_id
+// - base_cost
+// - tokens_used
+```
+
+### Problems
+1. **Malicious backend**: Can submit same usage multiple times (different seconds)
+2. **No idempotency**: No way to detect duplicate submissions
+3. **Economic attack**: Drain vault via repeated submissions
+
+### Risk Level
+Medium
+
+### Impact
+- Backend can double-charge users
+- No protection against backend bugs
+- Spending limit is only defense
+
+### Recommended Fix
+
+#### Option A: Usage Hash Verification
+```rust
+// Add to instruction parameters
+pub fn record_ai_usage_with_delegation(
+    ctx: Context<RecordAiUsageWithDelegation>,
+    usage_hash: [u8; 32],  // Hash of (model_id, tokens, timestamp, nonce)
+    // ... other params
+) -> Result<()> {
+    // Verify hash matches parameters
+    let computed_hash = hash(&[
+        model_id.as_bytes(),
+        &tokens_used.to_le_bytes(),
+        &timestamp.to_le_bytes(),
+        &nonce.to_le_bytes(),
+    ]);
+
+    require!(usage_hash == computed_hash, RabitError::InvalidUsageHash);
+
+    // Store hash in usage record for verification
+    usage_record.usage_hash = usage_hash;
+}
+```
+
+**Pros**:
+- Cryptographic uniqueness
+- Verifiable off-chain
+
+**Cons**:
+- Backend must compute hashes
+- More complex
+
+#### Option B: Off-Chain Signature
+```rust
+// Backend signs usage data
+pub fn record_ai_usage_with_delegation(
+    ctx: Context<RecordAiUsageWithDelegation>,
+    backend_signature: [u8; 64],  // Ed25519 signature
+    // ... other params
+) -> Result<()> {
+    // Verify signature
+    let message = create_usage_message(model_id, tokens_used, timestamp);
+    require!(
+        verify_signature(backend_signature, message, config.backend_authority),
+        RabitError::InvalidBackendSignature
+    );
+}
+```
+
+**Pros**:
+- Strong authenticity
+- Non-repudiation
+
+**Cons**:
+- Signature verification cost
+- Complex implementation
+
+#### Option C: Sequence Counter (Solves Issue #1 too)
+```rust
+// Use vault.usage_sequence (from Issue #1 fix)
+// Monotonic counter prevents replays automatically
+```
+
+**Pros**:
+- Simple
+- Solves multiple issues
+
+**Cons**:
+- Requires state update
+
+### Implementation Priority: **MEDIUM** Medium:
+
+**Recommended**: Option C (Sequence Counter) - solves both Issue #1 and #5
+
+---
+
+## Issue 6: Delegation Granularity Too Global
+
+### Current Implementation
+```rust
+pub struct DelegatedSigner {
+    pub owner: Pubkey,
+    pub delegated_pubkey: Pubkey,
+    pub spending_limit: u64,
+    // No restrictions on:
+    // - which models
+    // - which usage types
+}
+```
+
+### Problems
+1. **All-or-nothing**: Delegate can use any model
+2. **No usage type restriction**: Can use text, image, audio, video
+3. **Overly permissive**: User can't limit scope
+
+### Risk Level
+Low  (UX issue, not security)
+
+### Impact
+- Users may want to restrict delegation scope
+- Can't limit to specific models or usage types
+- Less granular control
+
+### Recommended Fix
+
+#### Option A: Add Restriction Fields
+```rust
+pub struct DelegatedSigner {
+    // ... existing fields
+    pub allowed_models: Option<Vec<String>>,      // None = all models
+    pub allowed_usage_types: Option<Vec<String>>, // None = all types
+}
+
+// In record_ai_usage_with_delegation
+if let Some(allowed) = &delegated_signer.allowed_models {
+    require!(
+        allowed.contains(&model_id),
+        RabitError::ModelNotAllowedForDelegation
+    );
+}
+```
+
+**Pros**:
+- Granular control
+- User-configurable
+
+**Cons**:
+- Larger account size
+- More complex validation
+
+#### Option B: Delegation Profiles
+```rust
+// Predefined profiles
+pub enum DelegationProfile {
+    Unrestricted,
+    TextOnly,
+    SpecificModels(Vec<String>),
+    Custom { models: Vec<String>, types: Vec<String> },
+}
+
+pub struct DelegatedSigner {
+    // ... existing fields
+    pub profile: DelegationProfile,
+}
+```
+
+**Pros**:
+- Clear presets
+- Easy to understand
+
+**Cons**:
+- Less flexible than Option A
+
+### Implementation Priority: **LOW** Low:
+
+**Recommended**: Option A (Restriction Fields) as optional enhancement for v2
+
+---
+
+## Issue 7: Vault = Single Balance (No Isolation)
+
+### Current Implementation
+```rust
+pub struct Vault {
+    pub balance: u64,  // Single balance for all usage
+}
+```
+
+### Problems
+1. **No isolation**: All models share same balance
+2. **No budgeting**: Can't allocate per model/service
+3. **No spending limits per model**: Only global spending limit
+
+### Risk Level
+Low  (Design trade-off, not bug)
+
+### Impact
+- Users can't budget per model
+- No way to limit spending on expensive models
+- All-or-nothing balance management
+
+### Recommended Fix
+
+#### Option A: Sub-Accounts (Complex)
+```rust
+pub struct Vault {
+    pub owner: Pubkey,
+    pub total_balance: u64,
+    pub allocations: Vec<Allocation>,  // Per model/service
+}
+
+pub struct Allocation {
+    pub model_id: String,
+    pub allocated_balance: u64,
+}
+```
+
+**Pros**:
+- Granular budgeting
+- Spending limits per model
+
+**Cons**:
+- Very complex
+- High gas costs
+- Account size issues
+
+#### Option B: Multiple Vaults (Simple)
+```rust
+// User creates multiple vaults
+seeds = [VAULT_SEED, owner.key(), &vault_index.to_le_bytes()]
+
+// User manages which vault for which purpose
+```
+
+**Pros**:
+- Simple implementation
+- User controls allocation
+
+**Cons**:
+- More rent costs
+- User must manage multiple vaults
+
+#### Option C: Off-Chain Tracking (Recommended)
+```rust
+// Keep single vault
+// Track allocations off-chain
+// Enforce in backend logic
+```
+
+**Pros**:
+- No on-chain complexity
+- Flexible
+
+**Cons**:
+- Not enforced on-chain
+
+### Implementation Priority: **LOW** Low:
+
+**Recommended**: Option C (Off-Chain) - not worth on-chain complexity
+
+---
+
+## Priority Summary
+
+### Completed (Fixed)
+1. **Issue #1**: Usage PDA collision →  Sequence counter implemented
+2. **Issue #2**: Backend authority enforcement →  Strict check added
+
+### High Priority (Recommended)
+3. **Issue #3**: Model registry ambiguity → Add verification flags
+
+### Medium Priority (Plan for v2) Medium:
+4. **Issue #5**: Replay protection →  Solved by sequence counter
+5. **Issue #4**: Revenue split → Plan architecture
+
+### Low Priority (Nice to Have) Low:
+6. **Issue #6**: Delegation granularity → Optional enhancement
+7. **Issue #7**: Vault isolation → Off-chain solution
+
+---
+
+## Implementation Roadmap
+
+### Phase 1: Critical Fixes (COMPLETED)
+- [x] Add `usage_sequence` to Vault
+- [x] Update usage PDA seeds to use sequence
+- [x] Add `backend_authority` enforcement
+- [ ] Add tests for both fixes
+
+### Phase 2: Testing & Validation (Current)
+- [ ] Unit tests for sequence counter
+- [ ] Unit tests for backend enforcement
+- [ ] Integration tests for full flows
+- [ ] Adversarial tests for attack vectors
+- [ ] Performance tests for gas costs
+
+### Phase 3: Security Enhancements (Recommended)
+- [ ] Add model verification flags
+- [ ] Add `is_verified_model` to usage records
+- [ ] Update events with verification status
+- [ ] Add tests for verification
+
+### Phase 4: Revenue Architecture (Future)
+- [ ] Design revenue split system
+- [ ] Add model owner fields
+- [ ] Implement deferred settlement
+- [ ] Add claim instructions
+
+### Phase 5: Optional Enhancements (Future)
+- [ ] Delegation restrictions
+- [ ] Multiple vault support
+- [ ] Advanced budgeting
+
+---
+
+## Testing Requirements
+
+### For Each Fix
+1. **Unit tests**: Test fix in isolation
+2. **Integration tests**: Test with full flow
+3. **Adversarial tests**: Try to break the fix
+4. **Performance tests**: Measure gas impact
+
+### Specific Test Cases
+
+**Issue #1 (Sequence Counter)**:
+- [ ] Multiple usage in same second
+- [ ] High-frequency usage (100 TPS)
+- [ ] Sequence overflow handling
+- [ ] Concurrent usage attempts
+
+**Issue #2 (Backend Enforcement)**:
+- [ ] Non-backend tries to record usage
+- [ ] Backend authority changed mid-flight
+- [ ] Multiple backends (if whitelist)
+
+**Issue #3 (Model Verification)**:
+- [ ] Unregistered model usage
+- [ ] Deactivated model usage
+- [ ] Pricing validation
+- [ ] Verification flag accuracy
+
+---
+
+## Migration Plan
+
+### Breaking Changes
+1. **Vault state change** (add usage_sequence)
+2. **Backend authority enforcement** (may break existing delegations)
+
+### Migration Steps
+1. Deploy new program version
+2. Create migration instruction
+3. Users migrate vaults (one-time)
+4. Deprecate old version
+
+### Backward Compatibility
+- Keep old `record_ai_usage` (no delegation) working
+- Add new `record_ai_usage_with_verified_delegation`
+- Deprecate old delegation instruction
+
+---
+
+**Last Updated**: 2024
+**Status**: Identified - Awaiting Implementation
+**Priority**: CRITICAL (Issues #1, #2)
