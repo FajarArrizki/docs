@@ -187,6 +187,20 @@ If AI review fails, uses rule-based analysis:
 
 ## WebSocket Broadcasting
 
+The news monitor now exposes three different time signals so the client can decide whether a headline is old, newly discovered, or simply part of the latest backend payload.
+
+| Field | Meaning |
+| --- | --- |
+| `date` | original publish time from the source when available |
+| `detected_at` | when Rabit first saw the article |
+| `timestamp` | when the current WebSocket message or snapshot was emitted |
+| `freshness_seconds` | seconds since Rabit first saw the article |
+| `is_new` | backend helper that marks recently detected headlines |
+
+For UI freshness, `detected_at` is usually the right field to sort by. `is_new` is the convenient badge field, while `freshness_seconds` is the raw number if the client wants more control.
+
+The `is_new` helper is controlled by `NEWS_IS_NEW_WINDOW_SECONDS` and defaults to 24 hours.
+
 ### Message Format
 
 ```json
@@ -205,6 +219,8 @@ If AI review fails, uses rule-based analysis:
             "date": "2024-01-15T10:00:00Z",
             "source": "CoinDesk",
             "detected_at": "2024-01-15T10:30:00Z",
+            "freshness_seconds": 42,
+            "is_new": true,
             "keyword": "BTC|ETH|SOL",
             "review": {
                 "sentiment": "POSITIVE",
@@ -256,6 +272,7 @@ while True:
 NEWS_MONITOR_ENABLED=true
 NEWS_MONITOR_INTERVAL=300  # 5 minutes
 NEWS_MONITOR_AUTO_REVIEW=true
+NEWS_IS_NEW_WINDOW_SECONDS=86400
 ```
 
 ### Programmatic Configuration

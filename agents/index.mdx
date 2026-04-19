@@ -1,17 +1,30 @@
 ---
 title: "Agents"
-description: "How Rabit's runtime agent works, why one adaptive agent was chosen, and how context and exchange behavior shape the response."
+description: "How Rabit's agent entrypoint works, how routing now plans the next specialist target, and how context and exchange behavior shape the response."
 ---
 
-Rabit uses one concrete runtime agent: `TradingAgent`.
+Rabit currently executes requests through one concrete runtime agent: `TradingAgent`.
+
+But the pipeline around it is no longer just “one prompt in, one answer out”.
+
+The backend now uses a multi-agent-ready entrypoint:
+
+- one entry agent receives the request
+- one router stage classifies the request
+- one dispatch plan selects the next specialist target
+- one composable node plan decides which pre-response nodes should run
+- the current runtime still executes the request end-to-end until specialist runtimes are introduced
 
 That choice is important.
 
-Instead of introducing many separate specialist runtimes too early, Rabit keeps one adaptive entry point and makes it smarter through:
+Instead of shipping half-finished specialist runtimes too early, Rabit now separates `routing` from `execution` while still keeping one stable execution engine in production. The entrypoint becomes smarter through:
 
 - intent routing
+- dispatch planning
+- composable pipeline nodes
 - tool grouping
 - context handling
+- safe fallback behavior
 - exchange-aware behavior
 
 ## Why this matters
@@ -23,28 +36,87 @@ This keeps the architecture easier to reason about while still allowing the prod
 - execution-aware requests
 - memory-backed conversations
 
+It also means the backend can evolve into a real router-plus-specialist architecture later without breaking its existing API or mobile integration.
+
 ## What this section explains
 
 | Topic | Why it matters |
 | --- | --- |
 | Runtime structure | shows how the agent is orchestrated |
+| Pipeline planning | explains how entrypoint, router, and dispatch planning now fit together |
+| Pipeline nodes | explains how one request can run multiple specialist-like steps without hardcoding a second runtime |
 | Wallet auth | explains how identity reaches protected agent behavior |
 | Market and request context | explains why the same prompt can behave differently depending on the current screen or scope |
 | Intent routing | shows how Rabit narrows tool access and response behavior |
 | Exchange behavior | explains why Backpack and Drift are handled differently inside the agent |
 
-## Why one agent is still enough today
+## What is true today
 
-The key point is that Rabit is not trying to win by multiplying runtime agents.
+Rabit is not yet executing with many independent specialist agents.
 
-It is trying to win by making one agent:
+Today it does this instead:
+
+- routes every request through a dedicated classifier stage
+- chooses the most likely future specialist target
+- executes a composable node plan before the main response when needed
+- records a pipeline trace for evaluation and regression tests
+- keeps execution on the stable runtime agent
+- degrades gracefully when routing or tools fail
+
+The first concrete nodes in that system are:
+
+- `chart_analysis`
+- `market_snapshot`
+- `research_snapshot`
+- `portfolio_snapshot`
+- `execution_snapshot`
+- `memory_snapshot`
+- `general_fallback`
+- `clarification_prep`
+- `response_composer`
+
+They behave like specialist steps, but not like fully separate runtimes. That means Rabit can:
+
+- inspect TradingView chart state
+- change symbol only when the request is in global market scope
+- respect locked-asset market context
+- add temporary indicators
+- read indicator values and quote data
+- gather live price and recent asset-specific headlines
+- gather compact research context from news and web search for research-like requests
+- gather balances, collateral, and positions for portfolio-oriented requests
+- gather execution readiness and open-order state for execution-oriented requests
+- gather relevant stored memory for memory-oriented requests
+- prepare a safer low-confidence fallback mode when routing confidence drops
+- prepare the minimum structured clarification context when ambiguity blocks execution
+- pass those observations into the final answer
+
+It also means node-level tool restriction is now part of the execution contract, not just the routing story:
+
+| Node | Tool-surface rule |
+| --- | --- |
+| `chart_analysis` | keeps chart-reading and indicator tools available but blocks drawing and alert tools from the LLM-facing schema |
+| `general_fallback` | narrows the turn to safe UI-only tools such as hints and plans when routing confidence is low |
+| `clarification_prep` | narrows the turn to `show_hint` only so ambiguity resolution stays minimal and controlled |
+
+without turning the whole backend into a hardcoded two-agent system.
+
+For chart-heavy or market-sensitive requests, the dispatch target still stays on `market_specialist`. The technical chart-specific part is represented by the `chart_analysis` node, while the compact price-and-news enrichment step is represented by `market_snapshot`, not by pretending separate runtimes already exist.
+
+So the product gets the benefits of cleaner orchestration now, while avoiding premature specialist implementations.
+
+## Why this architecture is better for the next phase
+
+Rabit is trying to win by making the entrypoint and routing layer:
 
 - better informed
 - better gated
 - better connected to system tools
 - safer around execution
+- easier to evaluate
+- easier to split into specialists later
 
-That is a more disciplined architecture for the product stage Rabit is in now.
+That is a more disciplined architecture for the stage Rabit is in now.
 
 ## Read this with
 
@@ -52,4 +124,3 @@ That is a more disciplined architecture for the product stage Rabit is in now.
 - [Wallet Auth](./auth/wallet-auth)
 - [Intent Routing](./routing/intent-routing)
 - [Exchange Execution](/features/execution)
-

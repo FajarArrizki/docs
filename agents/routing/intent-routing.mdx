@@ -1,12 +1,12 @@
 # Intent Routing
 
-This document explains how the backend classifies a user request before the main agent response is generated.
+This document explains how the backend classifies a user request before the main agent response is generated and how that classification now feeds a future specialist-dispatch plan.
 
 ## Why Intent Routing Exists
 
-The backend uses one adaptive `TradingAgent` runtime rather than separate agents for each task.
+The backend no longer treats routing as a side note inside one monolithic turn.
 
-Intent routing helps the runtime decide four things before the final answer is generated:
+Intent routing is now the first explicit stage in the agent pipeline. It helps the entrypoint decide five things before the final answer is generated:
 
 | Routing decision | What it affects |
 | --- | --- |
@@ -14,6 +14,7 @@ Intent routing helps the runtime decide four things before the final answer is g
 | response shape | whether the user needs analysis, planning, comparison, or decision support |
 | tool access | which tool groups should be available to the model |
 | clarification policy | whether the system should ask instead of guessing |
+| next-agent target | which future specialist path the request should flow into |
 
 ## Routing Output
 
@@ -38,19 +39,23 @@ The router currently produces a structured context with these key fields:
 | `suggested_hint_title` | a suggested title for a guided frontend hint | helps the UI present the choice clearly |
 | `suggested_hint_options` | a suggested set of hint branches | lets the frontend render structured user choices |
 
-## Routing flow
+## Routing Flow
 
 ```mermaid
 flowchart LR
-    A[User request] --> B[Intent router]
-    B --> C[Structured routing context]
-    C --> D[Tool group filtering]
-    C --> E[Clarification decision]
-    C --> F[Language bias]
-    D --> G[TradingAgent runtime]
-    E --> G
-    F --> G
+    A[User request] --> B[Agent entrypoint]
+    B --> C[Intent router]
+    C --> D[Structured routing context]
+    D --> E[Dispatch plan]
+    E --> F[Tool group filtering]
+    E --> G[Clarification decision]
+    E --> H[Language bias]
+    F --> I[Current runtime execution]
+    G --> I
+    H --> I
 ```
+
+Today, `Dispatch plan` means the backend records which specialist target should eventually own the request, but still lets the current runtime execute it. That gives Rabit a stable production path and a cleaner future split at the same time.
 
 ## Top-Level Intent Families
 
@@ -173,7 +178,7 @@ After routing, the backend can narrow the available tool schema using tool group
 | Tool group | What it gives the agent |
 | --- | --- |
 | `market` | price, asset, and market-state awareness |
-| `research` | broader search and information-gathering capability |
+| `research` | combined information retrieval, including general web search and dedicated news tools |
 | `chart` | chart-aware workflows such as TradingView-oriented actions |
 | `monitoring` | monitoring and watch-oriented workflows |
 | `memory` | durable memory and structured reflection workflows |
@@ -183,11 +188,93 @@ After routing, the backend can narrow the available tool schema using tool group
 
 This means the router is not only descriptive. It also shapes the tool surface sent to the model.
 
+| Research-like request | What `research` should usually return first |
+| --- | --- |
+| broad topic lookup | `web_search` plus supporting market context when needed |
+| catalyst or headline impact | dedicated news tools first, then web search for broader confirmation |
+| symbol-sensitive news check | `search_news_by_symbols` or keyword/news tools before broad web search |
+
 | Intent | Tool coverage example |
 | --- | --- |
 | `position_sizing` | can use `calculate_position_size` |
 | `market_scan` | can use `scan_markets` |
 | `journal_debrief` | can persist structured reflections through `create_trade_debrief` |
+| `news_impact` | can use dedicated news tools inside the `research` group |
+
+## Dispatch Planning
+
+The router now feeds a dispatch-planning step. This step does not instantiate specialist agents yet. It simply decides which specialist should own the request once those runtimes exist.
+
+| Intent pattern | Planned next-agent target |
+| --- | --- |
+| `market_analysis`, `trade_setup`, `market_scan`, `alert_setup` | `market_specialist` |
+| `broker_execution` | `execution_specialist` |
+| `portfolio_review`, `position_management`, `position_sizing` | `portfolio_specialist` |
+| `memory_*`, `journal_debrief`, `preference_update`, `context_reset`, `emotional_check` | `memory_specialist` |
+| `research`, `education`, `macro_context`, `regulatory_check`, `plan_or_strategy` | `research_specialist` |
+| low-confidence routing | `general_specialist` |
+| clarification-required routing | `clarification_gate` |
+
+This matters because the entrypoint now knows two things at once:
+
+- what the request is
+- what kind of specialist should eventually own it
+
+That makes regression testing, fallback handling, and later specialist rollout much cleaner.
+
+## Pipeline Node Planning
+
+Dispatch planning and node planning are related, but they are not the same thing.
+
+| Layer | What it answers |
+| --- | --- |
+| dispatch plan | which future specialist runtime should eventually own this request |
+| pipeline node plan | which composable steps should run inside the current runtime right now |
+
+Today Rabit uses node planning to avoid hardcoding a second runtime too early.
+
+Example:
+
+| Request shape | Planned nodes |
+| --- | --- |
+| general market request | `market_snapshot -> response_composer` |
+| chart-indicator request | `chart_analysis -> market_snapshot -> response_composer` |
+| research/news request | `market_snapshot -> research_snapshot -> response_composer` |
+| portfolio request | `portfolio_snapshot -> response_composer` |
+| execution request | `execution_snapshot -> response_composer` |
+| memory request | `memory_snapshot -> response_composer` |
+| low-confidence request | `general_fallback -> response_composer` |
+| clarification-required request | `clarification_prep -> response_composer` |
+
+In that case the dispatch target still stays on the market path. The chart-heavy behavior is represented by `chart_analysis -> market_snapshot -> response_composer`, not by pretending separate chart and market runtimes already exist.
+
+Low-confidence routing is now a hard stop for specialist-style pre-response nodes. Even if the raw text mentions charts or indicators, the planner stays on `general_fallback -> response_composer` until routing confidence is strong enough again.
+
+The first production nodes in this system are `chart_analysis`, `market_snapshot`, `research_snapshot`, `portfolio_snapshot`, `execution_snapshot`, `memory_snapshot`, `general_fallback`, `clarification_prep`, and `response_composer`.
+
+It is selected when the routing context and the user request both point toward chart-heavy work such as:
+
+- TradingView-oriented analysis
+- explicit indicator requests like RSI or MACD
+- technical-analysis questions that need chart state instead of plain market lookup
+
+`market_snapshot` adds compact live price and symbol-news context, `chart_analysis` adds the deeper TradingView inspection step, and `research_snapshot` adds the compact dedicated-news-plus-web-search context used by research-like requests.
+
+That keeps the graph composable. Later, the order can become:
+
+- `market_analysis -> chart_analysis -> response_composer`
+- `chart_analysis -> risk_review -> response_composer`
+
+without rewriting the API entrypoint.
+
+Each node can also carry its own `instruction` layer. So the pipeline now contributes:
+
+- a chart-analysis instruction that narrows technical behavior before the final model response
+- a market-snapshot instruction that narrows price-and-news enrichment behavior
+- a research-snapshot instruction that narrows research/news enrichment behavior
+- node-generated observations from TradingView plus live market/news/research context
+
+That gives Rabit a specialist-style pipeline without needing fully separate specialist runtimes yet. The owner of the request remains the selected specialist target, while the composable nodes carry the bounded pre-response work inside the current path.
 
 ## Clarification Behavior
 
@@ -202,6 +289,19 @@ The current behavior is intentionally conservative:
 | `show_hint` should only be used when ambiguity blocks a reliable answer | the product should ask only when the uncertainty is operationally important |
 
 So `should_clarify` is for genuinely blocking ambiguity, not for every imperfect message.
+
+If clarification is required, the dispatch plan does not point to a domain specialist yet. It points to a `clarification_gate`, which keeps the product from pretending to understand a request it has not understood well enough.
+
+That path now has a concrete node too: `clarification_prep`. It gathers the clarification reason plus any structured hint options before the final runtime answer is produced.
+
+The clarification path is now deliberately narrow at the tool layer too:
+
+| Path | LLM-facing tool surface |
+| --- | --- |
+| `clarification_prep` | `show_hint` only |
+| `general_fallback` | safe UI-only tools such as `show_hint`, `show_plan`, and `show_thinking_summary` |
+
+That keeps the system from asking for clarification and then accidentally seeing a broad operational tool surface anyway.
 
 ## Response Language
 
@@ -221,6 +321,7 @@ flowchart LR
     C[analysis_mode] --> H[what lens should the agent use]
     D[analysis_scope] --> I[how narrow or deep should the work be]
     E[preferred_tool_groups] --> J[what tool surface should be available]
+    K[selected_next_agent] --> L[which future specialist should own this request]
 ```
 
 | Field | Quick mental model |
@@ -230,6 +331,19 @@ flowchart LR
 | `analysis_mode` | what lens should the agent use |
 | `analysis_scope` | how narrow or deep should the work be |
 | `preferred_tool_groups` | what tool surface should be available |
+| `selected_next_agent` | which specialist path the request should eventually follow |
+
+There is now one more useful trace field behind the scenes: `next_agent_status`.
+
+It helps distinguish:
+
+| Status | What it means |
+| --- | --- |
+| `planned_only` | the target was chosen, but not represented by a concrete node yet |
+| `represented_by_pipeline_nodes` | the target is already expressed through one or more executed nodes |
+| `represented_by_pipeline_nodes_degraded` | node execution happened, but some part degraded |
+| `clarification_node_completed` | the clarification path executed concretely |
+| `general_node_completed` | the low-confidence fallback path executed concretely |
 
 ## Related Documentation
 

@@ -1128,6 +1128,61 @@
         }
       }
     },
+    "/api/news/assets/{symbol}": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Get latest news snapshot for one tracked asset",
+        "description": "Return a latest snapshot of asset-specific news using the existing news retrieval layer",
+        "operationId": "get_asset_news_api_news_assets__symbol__get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Symbol"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of asset news items to return",
+              "default": 5,
+              "title": "Limit"
+            },
+            "description": "Maximum number of asset news items to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetNewsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/assets/{symbol}/ohlc": {
       "get": {
         "tags": [
@@ -2206,6 +2261,12 @@
             "title": "Intent",
             "nullable": true
           },
+          "agent_pipeline": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Agent Pipeline",
+            "nullable": true
+          },
           "session_cost": {
             "$ref": "#/components/schemas/OpenRouterSessionCostResponse",
             "nullable": true
@@ -2283,6 +2344,9 @@
           },
           "market_state": {
             "$ref": "#/components/schemas/AgentMarketStateContext"
+          },
+          "news_context": {
+            "$ref": "#/components/schemas/AgentNewsContext"
           }
         },
         "type": "object",
@@ -2320,6 +2384,20 @@
         "type": "object",
         "title": "AgentMarketStateContext",
         "description": "Optional market-state hints supplied by the frontend."
+      },
+      "AgentNewsContext": {
+        "properties": {
+          "tail_titles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tail Titles"
+          }
+        },
+        "type": "object",
+        "title": "AgentNewsContext",
+        "description": "Optional news-headline hints supplied by the frontend."
       },
       "AgentUploadDeleteResponse": {
         "properties": {
@@ -2638,6 +2716,91 @@
         ],
         "title": "AssetListResponse",
         "description": "Response for GET /api/assets"
+      },
+      "AssetNewsItem": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet",
+            "nullable": true
+          },
+          "date": {
+            "type": "string",
+            "title": "Date",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "nullable": true
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "detected_at": {
+            "type": "string",
+            "title": "Detected At",
+            "nullable": true
+          },
+          "freshness_seconds": {
+            "type": "integer",
+            "title": "Freshness Seconds",
+            "nullable": true
+          },
+          "is_new": {
+            "type": "boolean",
+            "title": "Is New",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "url",
+          "symbol"
+        ],
+        "title": "AssetNewsItem",
+        "description": "One news item for a tracked asset."
+      },
+      "AssetNewsResponse": {
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "news": {
+            "items": {
+              "$ref": "#/components/schemas/AssetNewsItem"
+            },
+            "type": "array",
+            "title": "News"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "symbol",
+          "total"
+        ],
+        "title": "AssetNewsResponse",
+        "description": "Response for GET /api/news/assets/{symbol}."
       },
       "AssetSearchResponse": {
         "properties": {

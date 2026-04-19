@@ -17,6 +17,7 @@ It needs a live path for:
 | --- | --- |
 | price movement | keeps market views current |
 | OHLC updates | supports charting and technical workflows |
+| news updates | keeps catalyst-aware surfaces current |
 | monitoring | powers alert-style product behavior |
 | frontend updates | supports live product surfaces |
 | agent context | gives the assistant timing awareness |
@@ -25,7 +26,7 @@ It needs a live path for:
 
 ```mermaid
 flowchart TD
-    A[Exchange WebSocket or OHLC source] --> B[Client in ws/backpack, ws/drift, or ws/binance]
+    A[Exchange WebSocket, OHLC source, or news polling source] --> B[Client in ws/backpack, ws/drift, ws/binance, or ws/news]
     B --> C[Source service]
     C --> D[Shared market handler]
     D --> E[Normalized price and OHLC state]
@@ -81,6 +82,23 @@ This is not a full fault-tolerant event platform yet, but it is enough to suppor
 | Backpack | live price and OHLC-oriented market data |
 | Drift | live perp-oriented market context and price awareness |
 | Binance | historical and chart-oriented OHLC workflows |
+| News monitor | live headline updates derived from the existing news retrieval layer |
+
+## News freshness fields
+
+For news, the backend now exposes more than one time marker because "published time" and "seen by Rabit" are not always the same.
+
+| Field | Meaning | Typical frontend use |
+| --- | --- | --- |
+| `date` | publish time returned by the news source, when available | show the original article time |
+| `detected_at` | when the Rabit backend first observed the article | decide whether a headline is newly discovered |
+| `timestamp` | when the snapshot or WebSocket payload was emitted | align the client with the current backend update cycle |
+| `freshness_seconds` | seconds since `detected_at` | sort or fade headlines by recency without recalculating in the client |
+| `is_new` | backend helper flag for recently detected items | render a simple "new" badge in the UI |
+
+This is important because an article can be published earlier, but only become visible to the product later. The frontend should treat `detected_at` as the best signal for "new to Rabit" and `date` as the best signal for "original article age".
+
+The `is_new` window is configurable through `NEWS_IS_NEW_WINDOW_SECONDS`. The default is `86400` seconds, which means Rabit treats headlines detected within the last 24 hours as new.
 
 ## Read this with
 
@@ -88,4 +106,3 @@ This is not a full fault-tolerant event platform yet, but it is enough to suppor
 - [Backpack WebSocket](./backpack)
 - [Drift WebSocket](./drift)
 - [Binance Market Data](./binance)
-

@@ -12,6 +12,8 @@ They answer the first layer of user need:
 - what news matters
 - what should I keep watching
 
+They also power the `market_snapshot` pipeline node, which injects a compact read-only asset snapshot into the final runtime prompt before the user sees the answer.
+
 ## What is in this family
 
 | Tool | Purpose | Value source |
@@ -32,6 +34,21 @@ They answer the first layer of user need:
 | `get_price_monitor_stats` | gets monitor stats | price monitor runtime |
 | `start_price_monitor` | starts price poller | price monitor runtime |
 | `stop_price_monitor` | stops price poller | price monitor runtime |
+
+## How this family powers `market_snapshot`
+
+| Node input | Tool used | Why it matters |
+| --- | --- | --- |
+| active symbol | `get_price` | gives the runtime a live price anchor instead of vague market language |
+| active symbol | `search_news_by_symbols` | gives the runtime a small, asset-specific headline tail |
+
+This means the final answer can combine:
+
+- technical chart evidence from `chart_analysis`
+- live price context from `get_price`
+- recent asset headlines from `search_news_by_symbols`
+
+without pretending that every market question needs a full research pass first.
 
 ## How value enters the system
 

@@ -8,6 +8,29 @@ TradingView tools are the chart-control tools Rabit uses when a plain price look
 
 They are separate from the generic market family because they interact with a live chart surface, not only with backend market state.
 
+## How the chart-analysis node uses this family
+
+Rabit now has a composable `chart_analysis` pipeline node that uses a subset of the TradingView family for specialist-style chart reads.
+
+Its current analysis boundary is:
+
+| Allowed in `chart_analysis` | Not allowed in `chart_analysis` |
+| --- | --- |
+| `tv_get_state` | drawing tools |
+| `tv_set_symbol` when market scope is global | alert tools |
+| `tv_set_timeframe` | write-style chart annotations |
+| `tv_get_quote` | |
+| `tv_get_indicator_values` | |
+| `tv_add_indicator` | |
+| `tv_remove_indicator` when cleanup is needed later | |
+| `tv_capture_screenshot` if the chart workflow needs visual evidence | |
+
+That node does not hardcode a second runtime. It runs as one composable step inside the current agent pipeline, which means later Rabit can reorder nodes without redesigning the API entrypoint.
+
+The node also injects a local chart-analysis instruction into the turn-level prompt, so the final answer knows it came from a chart-analysis path inside the broader market specialist flow.
+
+For chart-analysis turns specifically, the backend now also removes drawing and alert tools from the LLM-facing tool schema. So even though the broader TradingView family still contains write-style tools, the analysis path only exposes the safe read-oriented subset to the model.
+
 ## Full coverage of the TradingView family
 
 | Category | Tools | What they do |
@@ -50,6 +73,29 @@ The TradingView client normalizes infrastructure errors before the agent sees th
 | server-side 500 | returns a normalized server error payload |
 | invalid response type | returns a structured format error |
 | invalid input at tool layer | chart, alert, and indicator tools validate input locally before calling the bridge |
+
+## How screenshot delivery works
+
+`tv_capture_screenshot` now feeds two paths at once:
+
+| Destination | What gets sent | Why it matters |
+| --- | --- | --- |
+| Agent runtime | screenshot metadata plus an inline image block when the chart bridge returns a reachable image URL | the model can analyze the actual chart image instead of only reading a text URL |
+| Streaming system/UI | a `chart_screenshot` event with `region`, `screenshot_url`, and availability metadata | the frontend can render or persist the screenshot while the agent continues the turn |
+
+```mermaid
+sequenceDiagram
+    participant A as Agent
+    participant T as TradingView tool
+    participant B as Chart bridge
+    participant U as UI stream
+
+    A->>T: tv_capture_screenshot(region)
+    T->>B: CAPTURE_SCREENSHOT
+    B-->>T: screenshot_url
+    T-->>U: chart_screenshot event
+    T-->>A: tool_result text + image block
+```
 
 The chart and alert tools then add their own friendly validation layer:
 
