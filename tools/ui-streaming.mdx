@@ -8,6 +8,11 @@ UI streaming tools are the bridge between the agent runtime and the frontend exp
 
 They do not fetch prices, read exchange state, or save memory. Their job is different: they make the streaming experience structured enough for the mobile client to render well.
 
+They now also matter at the pipeline-planning layer:
+
+- `general_fallback` is intentionally narrowed to safe UI-only tools
+- `clarification_prep` is intentionally narrowed to `show_hint` only
+
 ## Full coverage
 
 | Tool | What it emits | Value source | Failure model |

@@ -83,6 +83,37 @@ It answers four questions:
 | UI streaming | `show_plan` | emits structured plan | runtime event emitter | raises JSON or schema validation error |
 | UI streaming | `show_hint` | emits HITL branch selection prompt | runtime event emitter | raises JSON or schema validation error |
 
+## Pipeline-node coverage map
+
+The tool surface is now also reflected in the composable agent pipeline.
+
+| Pipeline node | Main tool family | Primary tools or behavior |
+| --- | --- | --- |
+| `chart_analysis` | TradingView | analysis mode: `tv_get_state`, `tv_set_symbol`, `tv_set_timeframe`, `tv_add_indicator`, `tv_get_indicator_values`, `tv_get_quote`, `tv_capture_screenshot`; write mode: `tv_get_state`, `tv_set_symbol`, `tv_set_timeframe`, `tv_clear_drawings`, `tv_draw_horizontal_line`, `tv_draw_line`, `tv_capture_screenshot` |
+| `market_snapshot` | Market | `get_price`, `search_news_by_symbols` |
+| `research_snapshot` | Market | `search_news_by_symbols`, `get_trending_news`, `web_search` |
+| `portfolio_snapshot` | Execution | portfolio and balance reads from Backpack or Drift |
+| `execution_snapshot` | Execution | execution readiness plus open-order and account-context reads |
+| `memory_snapshot` | Memory | `get_user_memory` and durable user-context recall |
+| `general_fallback` | UI streaming | safe UI-only tools when routing confidence is low |
+| `clarification_prep` | UI streaming | `show_hint` only during clarification turns |
+| `response_composer` | no direct external tools | synthesizes trusted node observations into the final answer |
+
+## What the pipeline adds beyond raw tools
+
+| Layer | Why it exists |
+| --- | --- |
+| tool family | defines what the backend can do |
+| pipeline node | defines when and why a bounded subset should run |
+| final runtime answer | turns those observations into one coherent response |
+
+That matters because Rabit no longer treats tool access as one flat surface. The same registry can be narrowed differently for:
+
+- chart-heavy requests
+- low-confidence fallback requests
+- clarification-first requests
+- research-heavy requests
+
 ## How Rabit handles tool failure
 
 ```mermaid

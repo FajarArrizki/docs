@@ -239,6 +239,7 @@ Example:
 | --- | --- |
 | general market request | `market_snapshot -> response_composer` |
 | chart-indicator request | `chart_analysis -> market_snapshot -> response_composer` |
+| chart-write request | `chart_analysis -> market_snapshot -> response_composer` |
 | research/news request | `market_snapshot -> research_snapshot -> response_composer` |
 | portfolio request | `portfolio_snapshot -> response_composer` |
 | execution request | `execution_snapshot -> response_composer` |
@@ -248,7 +249,7 @@ Example:
 
 In that case the dispatch target still stays on the market path. The chart-heavy behavior is represented by `chart_analysis -> market_snapshot -> response_composer`, not by pretending separate chart and market runtimes already exist.
 
-Low-confidence routing is now a hard stop for specialist-style pre-response nodes. Even if the raw text mentions charts or indicators, the planner stays on `general_fallback -> response_composer` until routing confidence is strong enough again.
+Low-confidence routing is now a hard stop for specialist-style pre-response nodes. Even if the raw text mentions charts or indicators, the planner stays on `general_fallback -> response_composer` until routing confidence is strong enough again. The same rule now covers chart-write requests too.
 
 The first production nodes in this system are `chart_analysis`, `market_snapshot`, `research_snapshot`, `portfolio_snapshot`, `execution_snapshot`, `memory_snapshot`, `general_fallback`, `clarification_prep`, and `response_composer`.
 
@@ -257,8 +258,16 @@ It is selected when the routing context and the user request both point toward c
 - TradingView-oriented analysis
 - explicit indicator requests like RSI or MACD
 - technical-analysis questions that need chart state instead of plain market lookup
+- explicit write requests such as clearing drawings or marking support, resistance, entry, target, stop, or invalidation levels
 
-`market_snapshot` adds compact live price and symbol-news context, `chart_analysis` adds the deeper TradingView inspection step, and `research_snapshot` adds the compact dedicated-news-plus-web-search context used by research-like requests.
+`chart_analysis` now has two planner-selected modes:
+
+| `chart_analysis` mode | When it is chosen | Behavior |
+| --- | --- | --- |
+| `analysis` | chart-heavy read requests | aligns the chart, adds indicators temporarily, and reads technical evidence |
+| `write` | explicit draw requests at medium or high routing confidence | clears or draws chart elements inside one bounded backend-owned step |
+
+`market_snapshot` adds compact live price and symbol-news context, `chart_analysis` adds the deeper TradingView inspection or mutation step, and `research_snapshot` adds the compact dedicated-news-plus-web-search context used by research-like requests.
 
 That keeps the graph composable. Later, the order can become:
 
@@ -269,7 +278,8 @@ without rewriting the API entrypoint.
 
 Each node can also carry its own `instruction` layer. So the pipeline now contributes:
 
-- a chart-analysis instruction that narrows technical behavior before the final model response
+- a chart-analysis instruction that narrows technical read behavior before the final model response
+- a chart-write instruction that narrows chart mutation behavior without exposing direct drawing tools to the final model
 - a market-snapshot instruction that narrows price-and-news enrichment behavior
 - a research-snapshot instruction that narrows research/news enrichment behavior
 - node-generated observations from TradingView plus live market/news/research context

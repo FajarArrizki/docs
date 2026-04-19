@@ -10,26 +10,68 @@ They are separate from the generic market family because they interact with a li
 
 ## How the chart-analysis node uses this family
 
-Rabit now has a composable `chart_analysis` pipeline node that uses a subset of the TradingView family for specialist-style chart reads.
+Rabit now uses one composable `chart_analysis` node with two bounded modes:
 
-Its current analysis boundary is:
+| Mode | When it is used | Purpose |
+| --- | --- | --- |
+| `analysis` | chart-heavy reads, indicator checks, technical inspection | inspect the workspace and gather technical evidence |
+| `write` | explicit chart-mutation requests such as clear, mark, plot, or annotate | apply controlled drawings inside the current market-specialist path |
 
-| Allowed in `chart_analysis` | Not allowed in `chart_analysis` |
+This is intentionally still one node.
+
+Rabit does not hardcode a second chart runtime. Instead, the planner switches the node into `analysis` or `write` mode and injects a mode-specific instruction into the turn-level system prompt. That keeps the chart workflow composable while still letting the backend enforce different guardrails for reading versus writing.
+
+### Analysis mode
+
+| Allowed in `chart_analysis` analysis mode | Blocked from the LLM-facing schema |
 | --- | --- |
 | `tv_get_state` | drawing tools |
 | `tv_set_symbol` when market scope is global | alert tools |
-| `tv_set_timeframe` | write-style chart annotations |
+| `tv_set_timeframe` | chart-mutation tools |
 | `tv_get_quote` | |
 | `tv_get_indicator_values` | |
 | `tv_add_indicator` | |
 | `tv_remove_indicator` when cleanup is needed later | |
 | `tv_capture_screenshot` if the chart workflow needs visual evidence | |
 
-That node does not hardcode a second runtime. It runs as one composable step inside the current agent pipeline, which means later Rabit can reorder nodes without redesigning the API entrypoint.
+In this mode, the node behaves like a technical inspection step. It can align symbol or timeframe, add indicators temporarily, read values, and return trusted observations to the final answer.
 
-The node also injects a local chart-analysis instruction into the turn-level prompt, so the final answer knows it came from a chart-analysis path inside the broader market specialist flow.
+### Write mode
 
-For chart-analysis turns specifically, the backend now also removes drawing and alert tools from the LLM-facing tool schema. So even though the broader TradingView family still contains write-style tools, the analysis path only exposes the safe read-oriented subset to the model.
+| Allowed in `chart_analysis` write mode | Intentionally blocked |
+| --- | --- |
+| `tv_get_state` | alert tools |
+| `tv_set_symbol` when market scope is global | indicator-management tools |
+| `tv_set_timeframe` | unrestricted chart mutation |
+| `tv_clear_drawings` on explicit user intent | free-form drawing access from the final model |
+| `tv_draw_horizontal_line` | |
+| `tv_draw_line` when the request includes enough coordinates | |
+| `tv_capture_screenshot` after successful chart changes | |
+
+In write mode, the node itself performs the chart mutation work. The final model does not get direct drawing tools at all. It only sees safe UI tools plus the node's trusted observation payload, which means the backend remains the real owner of chart mutations.
+
+## How write mode is gated
+
+| Rule | Why it exists |
+| --- | --- |
+| low-confidence routing does not enter write mode | prevents chart mutation on ambiguous requests |
+| clarification-required routing does not enter write mode | prevents writes before the request is understood |
+| `locked_asset` scope blocks symbol switching | prevents cross-asset mutation from a locked screen |
+| drawing requires concrete prices or line coordinates | prevents vague chart-mutation behavior |
+| screenshot capture runs after successful write actions | gives the UI and final answer visual confirmation |
+
+```mermaid
+flowchart LR
+    A[User request] --> B[Intent router]
+    B --> C[Pipeline planner]
+    C --> D{chart_analysis mode}
+    D -->|analysis| E[Read chart and indicators]
+    D -->|write| F[Apply controlled drawings]
+    E --> G[Inject trusted node observations]
+    F --> H[Capture screenshot and inject trusted write observations]
+    G --> I[Final response]
+    H --> I
+```
 
 ## Full coverage of the TradingView family
 
@@ -121,10 +163,11 @@ TradingView tools give Rabit a visual technical-analysis layer.
 
 That enables workflows like:
 
-- “show me SOL on 4H and add RSI”
-- “mark the invalidation level”
-- “what do the indicators currently say”
-- “capture the current chart state”
+- "show me SOL on 4H and add RSI"
+- "mark the invalidation level"
+- "clear the old drawings and re-mark support and resistance"
+- "what do the indicators currently say"
+- "capture the current chart state"
 
 ## Related docs
 

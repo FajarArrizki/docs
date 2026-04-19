@@ -204,6 +204,7 @@
             "pages": [
               "api-reference/auth",
               "api-reference/agent",
+              "api-reference/streaming",
               "api-reference/exchange-connections",
               "api-reference/drift"
             ]

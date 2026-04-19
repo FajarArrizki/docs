@@ -14,6 +14,8 @@ They answer the first layer of user need:
 
 They also power the `market_snapshot` pipeline node, which injects a compact read-only asset snapshot into the final runtime prompt before the user sees the answer.
 
+They now also power `research_snapshot` when the request needs a broader news-and-search enrichment pass without escalating into a fully open-ended research loop.
+
 ## What is in this family
 
 | Tool | Purpose | Value source |
@@ -49,6 +51,20 @@ This means the final answer can combine:
 - recent asset headlines from `search_news_by_symbols`
 
 without pretending that every market question needs a full research pass first.
+
+## Public product surfaces built on this family
+
+| Surface | What it gives the client |
+| --- | --- |
+| `GET /api/news/assets/{symbol}` | compact asset-specific news snapshot |
+| `WS /api/ws/news` | live news snapshot plus incremental updates |
+| `market_context.news_context.tail_titles` | short headline tail that can be fed back into the agent turn |
+
+That means the same retrieval family supports:
+
+- frontend news cards
+- live symbol news feeds
+- agent-side news context
 
 ## How value enters the system
 

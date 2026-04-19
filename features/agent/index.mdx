@@ -116,18 +116,16 @@ flowchart TD
 
 The first real nodes in the composable pipeline are `chart_analysis`, `market_snapshot`, `research_snapshot`, `portfolio_snapshot`, `execution_snapshot`, `memory_snapshot`, `general_fallback`, `clarification_prep`, and `response_composer`.
 
-The chart-analysis node still has the strictest boundaries:
+`chart_analysis` is now one dual-mode node, not two separate runtimes:
 
-| Allowed | Blocked |
-| --- | --- |
-| read chart state | chart drawings |
-| change symbol when scope is global | chart annotations and write workflows |
-| keep symbol locked when scope is `locked_asset` | alert creation as part of analysis |
-| set timeframe | permanent chart-writing behavior |
-| add indicators temporarily | unrestricted chart mutation |
-| read indicator values and quote data | |
+| Chart node mode | What it does | What it blocks |
+| --- | --- | --- |
+| `analysis` | reads chart state, aligns symbol/timeframe, adds indicators temporarily, reads quote and indicator values | drawing tools, alert tools, unrestricted chart mutation |
+| `write` | clears drawings when explicitly asked, marks horizontal levels, draws trend lines when enough coordinates exist, captures a post-write screenshot | alert tools, indicator-management tools, free-form chart mutation from the final model |
 
-Internally it follows a bounded `Reason -> Act -> Critique -> Observe` loop so the node can prepare chart evidence before the final response without drifting into uncontrolled tool spam.
+Internally both modes still follow a bounded `Reason -> Act -> Critique -> Observe` loop, but the write path uses a stricter instruction layer and a narrower LLM-facing tool surface.
+
+That means Rabit can support chart mutation without pretending a second chart runtime already exists.
 
 `market_snapshot` complements that step with a smaller read-only enrichment pass:
 
@@ -170,15 +168,31 @@ Those fallback-oriented nodes now also narrow the visible tool surface:
 | `general_fallback` | exposes only safe UI tools during low-confidence turns |
 | `clarification_prep` | exposes only `show_hint` during clarification turns |
 
-That low-confidence path is also planner-gated now. A raw mention of charts, RSI, or MACD no longer forces `chart_analysis` to run when routing confidence is low.
+That low-confidence path is also planner-gated now. A raw mention of charts, RSI, or MACD no longer forces `chart_analysis` to run when routing confidence is low, and a low-confidence draw request does not unlock chart write mode either.
 
 Together, these nodes contribute their own instructions into the effective prompt for that turn. That means the final response is not only grounded by chart observations, but also shaped by behavior rules such as:
 
 - respect locked asset scope
-- avoid chart-writing behavior
+- only enter chart-write behavior when the planner explicitly enabled write mode
 - prefer indicator evidence only when it improves the answer
 - keep the workflow analytical rather than operational
 - use compact live price and recent headline context before escalating to broader research
+
+## How the chart node now behaves in practice
+
+```mermaid
+flowchart LR
+    A[Market-specialist path] --> B[chart_analysis]
+    B --> C{chart_mode}
+    C -->|analysis| D[Inspect state and indicators]
+    C -->|write| E[Apply controlled chart mutation]
+    D --> F[market_snapshot]
+    E --> G[Capture screenshot]
+    G --> F
+    F --> H[response_composer]
+```
+
+The important boundary is that the final model does not directly receive the chart-writing tools during write mode. The node executes the chart mutation itself, then injects trusted observations and optional screenshot metadata into the broader market-specialist turn.
 
 ## What to read next
 

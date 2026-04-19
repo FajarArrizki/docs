@@ -43,8 +43,9 @@ In practice, the API is used by frontend and mobile clients to:
 | Exchange Connections | Backpack credential storage and execution access state |
 | Drift | same-wallet execution wallet and prepare/submit flow |
 | Assets | asset lookup, trending, related assets, and OHLC data |
+| News | asset-specific news snapshot plus live news WebSocket feed |
 | Models | OpenRouter model catalog and session-cost tracking |
-| Streaming | WebSocket price stream |
+| Streaming | SSE agent output plus WebSocket price and news transport |
 
 ## How the backend is shaped
 
@@ -115,6 +116,9 @@ If you are integrating from a client app, start with:
   <Card title="Agent" icon="message-bot" href="/api-reference/agent">
     Uploads, chat, SSE streaming, intent metadata, and session cost.
   </Card>
+  <Card title="Streaming" icon="radio" href="/api-reference/streaming">
+    SSE agent output plus WebSocket price and news transport.
+  </Card>
   <Card title="Exchange Connections" icon="key" href="/api-reference/exchange-connections">
     Execution access state and Backpack credential management.
   </Card>
@@ -129,8 +133,5 @@ If you are integrating from a client app, start with:
   </Card>
   <Card title="Memory" icon="brain" href="/api-reference/memory">
     Mem0 health, search, list, create, and delete.
-  </Card>
-  <Card title="Streaming" icon="radio" href="/api-reference/streaming">
-    SSE and WebSocket transport behavior.
   </Card>
 </CardGroup>

@@ -95,13 +95,13 @@ It also means node-level tool restriction is now part of the execution contract,
 
 | Node | Tool-surface rule |
 | --- | --- |
-| `chart_analysis` | keeps chart-reading and indicator tools available but blocks drawing and alert tools from the LLM-facing schema |
+| `chart_analysis` | analysis mode keeps chart-reading and indicator tools available while blocking draw and alert tools; write mode lets the node itself mutate the chart while still hiding drawing tools from the final model |
 | `general_fallback` | narrows the turn to safe UI-only tools such as hints and plans when routing confidence is low |
 | `clarification_prep` | narrows the turn to `show_hint` only so ambiguity resolution stays minimal and controlled |
 
 without turning the whole backend into a hardcoded two-agent system.
 
-For chart-heavy or market-sensitive requests, the dispatch target still stays on `market_specialist`. The technical chart-specific part is represented by the `chart_analysis` node, while the compact price-and-news enrichment step is represented by `market_snapshot`, not by pretending separate runtimes already exist.
+For chart-heavy or market-sensitive requests, the dispatch target still stays on `market_specialist`. The technical chart-specific part is represented by the `chart_analysis` node, which can now run in either analysis mode or write mode, while the compact price-and-news enrichment step is represented by `market_snapshot`, not by pretending separate runtimes already exist.
 
 So the product gets the benefits of cleaner orchestration now, while avoiding premature specialist implementations.
 
