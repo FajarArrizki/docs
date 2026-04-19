@@ -13,6 +13,8 @@ The backend now uses a multi-agent-ready entrypoint:
 - one router stage classifies the request
 - one dispatch plan selects the next specialist target
 - one composable node plan decides which pre-response nodes should run
+- one dependency-aware planner decides when a node should not run at all
+- one retry-aware executor handles bounded node recovery
 - the current runtime still executes the request end-to-end until specialist runtimes are introduced
 
 That choice is important.
@@ -71,6 +73,7 @@ The first concrete nodes in that system are:
 - `portfolio_snapshot`
 - `execution_snapshot`
 - `memory_snapshot`
+- `risk_review`
 - `general_fallback`
 - `clarification_prep`
 - `response_composer`
@@ -87,6 +90,7 @@ They behave like specialist steps, but not like fully separate runtimes. That me
 - gather balances, collateral, and positions for portfolio-oriented requests
 - gather execution readiness and open-order state for execution-oriented requests
 - gather relevant stored memory for memory-oriented requests
+- review downside, invalidation, fresh-news risk, and setup fragility before the final answer
 - prepare a safer low-confidence fallback mode when routing confidence drops
 - prepare the minimum structured clarification context when ambiguity blocks execution
 - pass those observations into the final answer
@@ -96,10 +100,38 @@ It also means node-level tool restriction is now part of the execution contract,
 | Node | Tool-surface rule |
 | --- | --- |
 | `chart_analysis` | analysis mode keeps chart-reading and indicator tools available while blocking draw and alert tools; write mode lets the node itself mutate the chart while still hiding drawing tools from the final model |
+| `risk_review` | stays read-only and turns accumulated chart, market, and execution observations into explicit caution flags and invalidation-aware risk framing |
 | `general_fallback` | narrows the turn to safe UI-only tools such as hints and plans when routing confidence is low |
 | `clarification_prep` | narrows the turn to `show_hint` only so ambiguity resolution stays minimal and controlled |
 
 without turning the whole backend into a hardcoded two-agent system.
+
+## Updated execution map
+
+```mermaid
+flowchart TD
+    A[TradingAgent entrypoint] --> B[Intent router]
+    B --> C[Dispatch target]
+    C --> D[Dependency-aware node plan]
+    D --> E[Graph executor]
+    E --> F[Node preflight]
+    F --> G[Retry/backoff when allowed]
+    G --> H[Node observations]
+    H --> I[Risk review when planned]
+    I --> J[Response composer]
+    G --> K[Artifact store when scope_id exists]
+```
+
+This is important because the pipeline is no longer just a static ordered list.
+
+It now has three extra behaviors:
+
+| Behavior | What it means |
+| --- | --- |
+| dependency-aware planning | the graph avoids nodes that do not have the minimum context to make sense |
+| node retry/backoff | transient degraded results can retry once in bounded fashion |
+| artifact persistence | chart-write screenshots and mutation summaries can live beyond a single turn when the request has a stable `scope_id` |
+| response synthesis | the final runtime receives primary evidence, conflict flags, and an answer posture instead of a flat node list |
 
 For chart-heavy or market-sensitive requests, the dispatch target still stays on `market_specialist`. The technical chart-specific part is represented by the `chart_analysis` node, which can now run in either analysis mode or write mode, while the compact price-and-news enrichment step is represented by `market_snapshot`, not by pretending separate runtimes already exist.
 
@@ -117,6 +149,29 @@ Rabit is trying to win by making the entrypoint and routing layer:
 - easier to split into specialists later
 
 That is a more disciplined architecture for the stage Rabit is in now.
+
+## Code organization
+
+The pipeline family now lives together under `agents/pipeline/`.
+
+| Module family | What lives there |
+| --- | --- |
+| `agents/pipeline/intent_router.py` | intent classification and tool-group planning |
+| `agents/pipeline/market_context.py` | frontend market-scope normalization and guidance |
+| `agents/pipeline/conversation_style.py` | response-style normalization and prompt guidance |
+| `agents/pipeline/trading_style.py` | trading-analysis style normalization and prompt guidance |
+| `agents/pipeline/pipeline.py` | dispatch planning, node planning, and pipeline trace models |
+| `agents/pipeline/artifacts.py` | session-scoped artifact persistence for pipeline outputs such as chart-write screenshots |
+
+This package is now the source of truth for the pipeline family, so routing, style normalization, market context, and pipeline planning all live in one place.
+
+## What improved in the latest quality pass
+
+| Area | What changed |
+| --- | --- |
+| `risk_review` | now derives invalidation quality, confluence strength, news fragility, execution readiness, and a normalized risk summary |
+| `response_composer` | now resolves primary evidence, supporting evidence, conflict flags, and recommended answer posture |
+| regression coverage | now locks chart-write ambiguity, portfolio ambiguity, research ambiguity, memory ambiguity, and execution degraded behavior |
 
 ## Read this with
 

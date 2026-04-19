@@ -27,6 +27,7 @@ In practice, the API is used by frontend and mobile clients to:
 - authenticate users with Solana wallet signatures
 - send messages to the trading agent
 - stream assistant output and UI events
+- fetch persisted pipeline artifacts such as chart-write screenshots by `scope_id`
 - manage Backpack execution access
 - prepare and submit Drift execution flows
 - fetch tracked asset and OHLC data
@@ -39,6 +40,7 @@ In practice, the API is used by frontend and mobile clients to:
 | System | service health and platform metadata |
 | Auth | wallet-based sign-in and current identity |
 | Agent | uploads, chat, and SSE chat |
+| Agent Artifacts | persisted per-scope pipeline artifacts such as chart-write screenshots |
 | Memory | Mem0-backed memory health and CRUD |
 | Exchange Connections | Backpack credential storage and execution access state |
 | Drift | same-wallet execution wallet and prepare/submit flow |

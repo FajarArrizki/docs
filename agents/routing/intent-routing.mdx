@@ -47,12 +47,13 @@ flowchart LR
     B --> C[Intent router]
     C --> D[Structured routing context]
     D --> E[Dispatch plan]
-    E --> F[Tool group filtering]
-    E --> G[Clarification decision]
-    E --> H[Language bias]
-    F --> I[Current runtime execution]
-    G --> I
-    H --> I
+    E --> F[Dependency-aware node plan]
+    F --> G[Tool group filtering]
+    F --> H[Clarification decision]
+    F --> I[Language bias]
+    G --> J[Current runtime execution]
+    H --> J
+    I --> J
 ```
 
 Today, `Dispatch plan` means the backend records which specialist target should eventually own the request, but still lets the current runtime execute it. That gives Rabit a stable production path and a cleaner future split at the same time.
@@ -240,6 +241,7 @@ Example:
 | general market request | `market_snapshot -> response_composer` |
 | chart-indicator request | `chart_analysis -> market_snapshot -> response_composer` |
 | chart-write request | `chart_analysis -> market_snapshot -> response_composer` |
+| risk-review request | `... -> risk_review -> response_composer` |
 | research/news request | `market_snapshot -> research_snapshot -> response_composer` |
 | portfolio request | `portfolio_snapshot -> response_composer` |
 | execution request | `execution_snapshot -> response_composer` |
@@ -251,7 +253,15 @@ In that case the dispatch target still stays on the market path. The chart-heavy
 
 Low-confidence routing is now a hard stop for specialist-style pre-response nodes. Even if the raw text mentions charts or indicators, the planner stays on `general_fallback -> response_composer` until routing confidence is strong enough again. The same rule now covers chart-write requests too.
 
-The first production nodes in this system are `chart_analysis`, `market_snapshot`, `research_snapshot`, `portfolio_snapshot`, `execution_snapshot`, `memory_snapshot`, `general_fallback`, `clarification_prep`, and `response_composer`.
+Node planning is also dependency-aware now:
+
+| Dependency rule | Practical effect |
+| --- | --- |
+| market snapshot requires a resolvable symbol | requests without a symbol do not waste a market-snapshot step |
+| risk review requires upstream observations | `risk_review` only runs when another node already produced usable context |
+| response composer depends on prior node output | the final synthesis step mirrors what actually happened, not what was only planned |
+
+The first production nodes in this system are `chart_analysis`, `market_snapshot`, `research_snapshot`, `portfolio_snapshot`, `execution_snapshot`, `memory_snapshot`, `risk_review`, `general_fallback`, `clarification_prep`, and `response_composer`.
 
 It is selected when the routing context and the user request both point toward chart-heavy work such as:
 
@@ -282,6 +292,7 @@ Each node can also carry its own `instruction` layer. So the pipeline now contri
 - a chart-write instruction that narrows chart mutation behavior without exposing direct drawing tools to the final model
 - a market-snapshot instruction that narrows price-and-news enrichment behavior
 - a research-snapshot instruction that narrows research/news enrichment behavior
+- a risk-review instruction that narrows the final answer toward downside, invalidation, and caution flags
 - node-generated observations from TradingView plus live market/news/research context
 
 That gives Rabit a specialist-style pipeline without needing fully separate specialist runtimes yet. The owner of the request remains the selected specialist target, while the composable nodes carry the bounded pre-response work inside the current path.
@@ -354,6 +365,19 @@ It helps distinguish:
 | `represented_by_pipeline_nodes_degraded` | node execution happened, but some part degraded |
 | `clarification_node_completed` | the clarification path executed concretely |
 | `general_node_completed` | the low-confidence fallback path executed concretely |
+
+## What happens after node execution now
+
+The last stage before the main runtime answer is no longer a flat summary.
+
+`response_composer` now turns the upstream graph output into:
+
+| Composer field | What it changes in the final answer |
+| --- | --- |
+| `primary_evidence_nodes` | what the model should trust most |
+| `supporting_nodes` | what can support but should not dominate the answer |
+| `conflict_flags` | what should be acknowledged as tension or fragility |
+| `recommended_posture` | whether the answer should be direct, balanced, cautious, risk-first, or uncertainty-aware |
 
 ## Related Documentation
 

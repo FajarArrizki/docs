@@ -124,6 +124,7 @@ The TradingView client normalizes infrastructure errors before the agent sees th
 | --- | --- | --- |
 | Agent runtime | screenshot metadata plus an inline image block when the chart bridge returns a reachable image URL | the model can analyze the actual chart image instead of only reading a text URL |
 | Streaming system/UI | a `chart_screenshot` event with `region`, `screenshot_url`, and availability metadata | the frontend can render or persist the screenshot while the agent continues the turn |
+| Pipeline artifact store | persisted chart-write screenshot record when the turn has a stable `scope_id` | the screenshot can be referenced again later instead of living only inside one turn |
 
 ```mermaid
 sequenceDiagram

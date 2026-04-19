@@ -95,9 +95,22 @@ The tool surface is now also reflected in the composable agent pipeline.
 | `portfolio_snapshot` | Execution | portfolio and balance reads from Backpack or Drift |
 | `execution_snapshot` | Execution | execution readiness plus open-order and account-context reads |
 | `memory_snapshot` | Memory | `get_user_memory` and durable user-context recall |
+| `risk_review` | no direct external tools | turns prior node observations into explicit downside, invalidation, and caution flags |
 | `general_fallback` | UI streaming | safe UI-only tools when routing confidence is low |
 | `clarification_prep` | UI streaming | `show_hint` only during clarification turns |
-| `response_composer` | no direct external tools | synthesizes trusted node observations into the final answer |
+| `response_composer` | no direct external tools | synthesizes trusted node observations into prioritized evidence, conflict flags, and final answer posture |
+
+## Node reliability layer
+
+The pipeline now also carries bounded orchestration policy around those tools.
+
+| Reliability layer | What it does |
+| --- | --- |
+| dependency-aware planning | avoids planning or executing nodes that do not yet have the minimum context |
+| node preflight | skips nodes cleanly before tool calls when a dependency is missing |
+| bounded retry/backoff | retries transient degraded nodes once instead of escalating immediately |
+| artifact persistence | stores chart-write screenshot outputs per `scope_id` so the result can be referenced again later |
+| response composition | converts raw node output into a coherent answer contract before the final runtime response |
 
 ## What the pipeline adds beyond raw tools
 

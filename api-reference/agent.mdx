@@ -156,6 +156,19 @@ This design is better for pay-as-you-go billing because:
 - multi-turn conversations can be charged as one session unit
 - background routing and compression cost can be included in one total
 
+## Pipeline artifacts
+
+The agent surface now also persists session-scoped pipeline artifacts when a request carries a stable `scope_id`.
+
+That matters most for chart-write turns because the backend can now keep:
+
+- the chart mutation summary
+- the resulting screenshot URL
+- the node that produced it
+- the scope that owns it
+
+This makes it easier for the frontend or later tooling to reopen what the agent actually drew, instead of treating chart screenshots as one-turn-only ephemeral state.
+
 ## Design principles
 
 The agent API is designed around product behavior rather than database resources.

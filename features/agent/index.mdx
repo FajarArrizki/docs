@@ -103,18 +103,22 @@ flowchart TD
     A[User request] --> B[Agent entrypoint]
     B --> C[Intent routing]
     C --> D[Dispatch planning]
-    D --> E[Pipeline node plan]
-    E --> F[Tool filtering]
-    F --> G[TradingAgent runtime execution]
-    G --> H[Assistant text]
-    G --> I[Structured UI events]
-    G --> J[Execution-aware guidance]
-    G --> K[Pipeline trace and fallback metadata]
+    D --> E[Dependency-aware node planning]
+    E --> F[Node preflight and tool filtering]
+    F --> G[Retry-aware graph executor]
+    G --> H[Node observations plus risk framing]
+    H --> I[Response composer synthesis]
+    I --> J[TradingAgent runtime execution]
+    J --> K[Assistant text]
+    J --> L[Structured UI events]
+    J --> M[Execution-aware guidance]
+    J --> N[Pipeline trace and fallback metadata]
+    G --> M[Session artifact store]
 ```
 
-## First specialist-like nodes: chart analysis, market snapshot, research snapshot, portfolio snapshot, execution snapshot, memory snapshot, general fallback, clarification prep, and response composer
+## First specialist-like nodes: chart analysis, market snapshot, research snapshot, portfolio snapshot, execution snapshot, memory snapshot, risk review, general fallback, clarification prep, and response composer
 
-The first real nodes in the composable pipeline are `chart_analysis`, `market_snapshot`, `research_snapshot`, `portfolio_snapshot`, `execution_snapshot`, `memory_snapshot`, `general_fallback`, `clarification_prep`, and `response_composer`.
+The first real nodes in the composable pipeline are `chart_analysis`, `market_snapshot`, `research_snapshot`, `portfolio_snapshot`, `execution_snapshot`, `memory_snapshot`, `risk_review`, `general_fallback`, `clarification_prep`, and `response_composer`.
 
 `chart_analysis` is now one dual-mode node, not two separate runtimes:
 
@@ -136,6 +140,27 @@ That means Rabit can support chart mutation without pretending a second chart ru
 | fetch a short symbol-news tail with `search_news_by_symbols` | broad, noisy research when a compact snapshot is enough |
 | inject trusted market/news observations into the final prompt | claiming unsupported always-live awareness |
 
+The planner is now dependency-aware too.
+
+That means the graph no longer plans or executes every node just because the request mentions a broad tool group.
+
+Examples:
+
+| Planner rule | What it changes |
+| --- | --- |
+| no symbol can be resolved before a market snapshot | `market_snapshot` is not planned, or is skipped before tool calls |
+| no upstream observations exist for risk framing | `risk_review` is skipped instead of pretending it has context |
+| low-confidence route | the graph stays on `general_fallback -> response_composer` even if the raw text mentions charts or indicators |
+
+Nodes also now have bounded retry/backoff behavior where it helps:
+
+| Node family | Retry policy |
+| --- | --- |
+| data-fetching nodes such as `chart_analysis`, `market_snapshot`, `research_snapshot`, `portfolio_snapshot`, `execution_snapshot`, and `memory_snapshot` | can retry once with a short bounded backoff when the result looks transient |
+| semantic/control nodes such as `risk_review`, `general_fallback`, `clarification_prep`, and `response_composer` | do not retry because they are deterministic by design |
+
+That keeps the graph more resilient without turning it into an unbounded autonomous loop.
+
 `research_snapshot` handles research-like requests where the product needs a little more context than a compact market snapshot:
 
 | It does | It avoids |
@@ -153,6 +178,23 @@ The remaining snapshot nodes fill the other specialist-target gaps:
 | `execution_snapshot` | execution policy state plus open-order context before an execution-oriented answer |
 | `memory_snapshot` | relevant durable memory recall before a memory-oriented answer |
 
+`risk_review` adds a different kind of value. It does not fetch new market data. Instead, it inspects the observations already gathered by earlier nodes and turns them into explicit downside framing:
+
+| It does | It avoids |
+| --- | --- |
+| check whether explicit invalidation or stop markers are present | pretending to know risk controls that were never observed |
+| flag fresh-news sensitivity and upstream degraded context | fetching another broad research round just to restate caution |
+| turn indicator extremes such as RSI overbought or oversold into risk flags | replacing the final model with a second free-form analyst |
+| inject a compact caution summary before the final answer | mutating execution or chart state |
+
+That framing is now richer than a plain caution flag. The node now also derives:
+
+- `invalidation_quality`
+- `confluence_strength`
+- `news_fragility`
+- `execution_readiness`
+- a normalized `risk_summary`
+
 The remaining non-snapshot nodes close the fallback and composition gaps:
 
 | Node | What it adds |
@@ -160,6 +202,17 @@ The remaining non-snapshot nodes close the fallback and composition gaps:
 | `general_fallback` | a safer low-confidence execution mode before the final answer |
 | `clarification_prep` | structured clarification context and hint guidance before the final answer |
 | `response_composer` | a concrete final composition step that summarizes prior node observations |
+
+`response_composer` is no longer just a passthrough summary. It now adds:
+
+| Composition output | Why it matters |
+| --- | --- |
+| `primary_evidence_nodes` | tells the final runtime which node outputs deserve the most weight |
+| `supporting_nodes` | keeps secondary context visible without over-weighting it |
+| `conflict_flags` | makes disagreements or fragility explicit instead of burying them |
+| `recommended_posture` | nudges the final answer toward `direct`, `balanced`, `cautious`, `risk_first`, or fallback behavior |
+| resolved symbol/timeframe | keeps the final answer anchored to the actual asset context |
+| artifact count | lets the runtime know when chart-write artifacts exist for this turn |
 
 Those fallback-oriented nodes now also narrow the visible tool surface:
 
@@ -188,11 +241,23 @@ flowchart LR
     C -->|write| E[Apply controlled chart mutation]
     D --> F[market_snapshot]
     E --> G[Capture screenshot]
-    G --> F
-    F --> H[response_composer]
-```
+    G --> H[Persist chart artifact]
+    H --> F
+    F --> I[risk_review when planned]
+    I --> J[response_composer synthesizes posture and conflicts]
+``` 
 
 The important boundary is that the final model does not directly receive the chart-writing tools during write mode. The node executes the chart mutation itself, then injects trusted observations and optional screenshot metadata into the broader market-specialist turn.
+
+That write path now also persists a session-scoped artifact when a `scope_id` exists.
+
+So a successful chart-write turn can now leave behind:
+
+- the chart mutation summary
+- the resulting screenshot URL
+- the node and scope that produced it
+
+This makes chart-write turns easier to reopen, inspect, or reference later from the frontend or from tooling.
 
 ## What to read next
 
