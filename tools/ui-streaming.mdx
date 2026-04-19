@@ -1,6 +1,6 @@
 ---
 title: "UI Streaming Tools"
-description: "How Rabit tools send structured frontend events such as plans, hints, and thinking summaries"
+description: "How Rabit tools send structured frontend events such as plans, hints, and thinking summaries."
 sidebarTitle: "UI Streaming"
 ---
 
@@ -8,20 +8,28 @@ UI streaming tools are the bridge between the agent runtime and the frontend exp
 
 They do not fetch prices, read exchange state, or save memory. Their job is different: they make the streaming experience structured enough for the mobile client to render well.
 
-They now also matter at the pipeline-planning layer:
+They also matter at the pipeline-planning layer:
 
 - `general_fallback` is intentionally narrowed to safe UI-only tools
 - `clarification_prep` is intentionally narrowed to `show_hint` only
 
-## Full coverage
+## What this family is for
 
-| Tool | What it emits | Value source | Failure model |
+| Product need | How UI streaming tools help |
+| --- | --- |
+| show visible progress during a long turn | `show_thinking_summary` emits concise progress updates |
+| present a structured execution plan | `show_plan` streams steps that the client can render cleanly |
+| ask for human-in-the-loop branching | `show_hint` emits explicit option sets instead of vague prose |
+
+## All UI streaming tools
+
+| Tool | Useful for | Value source | Failure shape |
 | --- | --- | --- | --- |
-| `show_thinking_summary` | concise progress update | runtime event emitter | raises when summary is empty; otherwise returns `streamed: false` if no emitter exists |
-| `show_plan` | structured plan with status and steps | runtime event emitter | raises on invalid status or malformed `steps_json` |
-| `show_hint` | human-in-the-loop branch prompt | runtime event emitter | raises on invalid title or malformed `options_json` |
+| `show_thinking_summary` | concise progress update | runtime event emitter | empty summary raises; missing emitter returns `streamed: false` |
+| `show_plan` | structured plan with status and steps | runtime event emitter | invalid status or malformed `steps_json` |
+| `show_hint` | human-in-the-loop branch prompt | runtime event emitter | invalid title or malformed `options_json` |
 
-## How the UI event path works
+## How this family works
 
 ```mermaid
 sequenceDiagram
@@ -36,6 +44,14 @@ sequenceDiagram
     Tool-->>Agent: success + payload + streamed flag
 ```
 
+## Per-tool breakdown
+
+| Tool | Useful for | How it works | Main output |
+| --- | --- | --- | --- |
+| `show_thinking_summary` | surface concise progress text | validates the summary, emits it through the runtime event emitter, and returns whether it was streamed | thinking-summary payload |
+| `show_plan` | surface a structured multi-step plan | validates plan status and steps JSON, emits the plan, and returns whether it was streamed | plan payload |
+| `show_hint` | ask the user to choose a branch | validates title and options JSON, emits a HITL hint, and returns whether it was streamed | hint payload |
+
 ## Why this family matters
 
 | Without UI tools | With UI tools |
@@ -48,7 +64,7 @@ sequenceDiagram
 
 | Failure type | How it is handled | What the agent should do |
 | --- | --- | --- |
-| invalid summary/plan/hint payload | the tool raises validation errors immediately | fix the payload instead of pretending the UI event was sent |
+| invalid summary, plan, or hint payload | the tool raises validation errors immediately | fix the payload instead of pretending the UI event was sent |
 | no event emitter in current runtime | tool returns `streamed: false` while still returning the payload | continue the response, knowing the event did not reach a live streaming consumer |
 
 ## Why this is important in Rabit

@@ -31,7 +31,7 @@ In practice, the API is used by frontend and mobile clients to:
 - manage Backpack execution access
 - prepare and submit Drift execution flows
 - fetch tracked asset and OHLC data
-- inspect model and session-cost state
+- inspect model and service-cost state
 
 The agent surface also now carries more structured backend reasoning than before:
 
@@ -53,7 +53,8 @@ The agent surface also now carries more structured backend reasoning than before
 | Drift | same-wallet execution wallet and prepare/submit flow |
 | Assets | asset lookup, trending, related assets, and OHLC data |
 | News | asset-specific news snapshot plus live news WebSocket feed |
-| Models | OpenRouter model catalog and session-cost tracking |
+| Models | OpenRouter model catalog surfaces |
+| Service Cost | combined model and monitoring cost tracking |
 | Streaming | SSE agent output plus WebSocket price and news transport |
 
 ## What changed in the current backend generation
@@ -124,7 +125,8 @@ If you are integrating from a client app, start with:
 2. Agent
 3. Exchange Connections or Drift
 4. Assets
-5. Models if you need session-cost tracking
+5. Models if you need model catalog access
+6. Service Cost if you need pay-as-you-go cost tracking
 
 ## API reference pages
 
@@ -151,7 +153,10 @@ If you are integrating from a client app, start with:
     Asset list, search, categories, summaries, related assets, and OHLC.
   </Card>
   <Card title="Models" icon="cpu" href="/api-reference/models">
-    OpenRouter model catalog and accumulated session cost.
+    OpenRouter model catalog and capability metadata.
+  </Card>
+  <Card title="Service Cost" icon="wallet" href="/api-reference/agent">
+    Combined model and monitoring cost summaries for one scope.
   </Card>
   <Card title="Memory" icon="brain" href="/api-reference/memory">
     Mem0 health, search, list, create, and delete.

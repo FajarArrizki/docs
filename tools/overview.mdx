@@ -25,7 +25,7 @@ It answers four questions:
 | Market | `start_news_monitoring` | starts background news monitoring | news monitoring runtime | structured failure if monitor cannot start |
 | Market | `stop_news_monitoring` | stops background news monitoring | news monitoring runtime | structured failure if stop fails |
 | Market | `get_monitoring_status` | returns monitor status and sentiment stats | news monitoring runtime state | structured failure |
-| Market | `add_price_alert` | stores validation/invalidation alert | price monitor runtime | structured validation error or runtime error |
+| Market | `add_price_alert` | stores validation/invalidation alert, starts monitoring-cost tracking, and returns preview automation prompts | price monitor runtime + monitoring cost ledger | structured validation error or runtime error |
 | Market | `remove_price_alert` | removes one alert | price monitor runtime | structured not-found error |
 | Market | `list_price_alerts` | lists alerts and trigger status | price monitor runtime | structured runtime error |
 | Market | `get_price_alert` | reads a single alert | price monitor runtime | structured not-found error |
@@ -111,6 +111,17 @@ The pipeline now also carries bounded orchestration policy around those tools.
 | bounded retry/backoff | retries transient degraded nodes once instead of escalating immediately |
 | artifact persistence | stores chart-write screenshot outputs per `scope_id` so the result can be referenced again later |
 | response composition | converts raw node output into a coherent answer contract before the final runtime response |
+
+## Monitoring-trigger automation
+
+Some market tools do more than return a point-in-time read.
+
+| Monitoring behavior | What Rabit now emits |
+| --- | --- |
+| price setup validation/invalidation hit | structured `price_alert_triggered` payload with `default_prompt` |
+| news monitoring update | news monitor event payloads and per-asset news snapshot surfaces |
+
+That means monitoring can now hand the client a "next message to send" instead of only a raw background state change.
 
 ## What the pipeline adds beyond raw tools
 

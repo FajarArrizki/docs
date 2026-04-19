@@ -237,7 +237,7 @@
     "/api/openrouter/session-costs/{scope_id}": {
       "get": {
         "tags": [
-          "Models"
+          "Service Cost"
         ],
         "summary": "Return accumulated OpenRouter session cost for one scope",
         "description": "Return one scope_id's accumulated OpenRouter usage and estimated cost.",
@@ -282,6 +282,71 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OpenRouterSessionCostResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/service-costs/{scope_id}": {
+      "get": {
+        "tags": [
+          "Service Cost"
+        ],
+        "summary": "Return combined model and monitoring service cost for one scope",
+        "description": "Return one scope_id's combined model and monitoring cost summary.",
+        "operationId": "get_service_cost_api_service_costs__scope_id__get",
+        "parameters": [
+          {
+            "name": "scope_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scope Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Optional explicit user ID when no bearer token is available",
+              "title": "User Id",
+              "nullable": true
+            },
+            "description": "Optional explicit user ID when no bearer token is available"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceCostSummaryResponse"
                 }
               }
             }
@@ -2335,6 +2400,10 @@
           "session_cost": {
             "$ref": "#/components/schemas/OpenRouterSessionCostResponse",
             "nullable": true
+          },
+          "service_cost": {
+            "$ref": "#/components/schemas/ServiceCostSummaryResponse",
+            "nullable": true
           }
         },
         "type": "object",
@@ -4095,6 +4164,92 @@
         "title": "ModelsListResponse",
         "description": "Response for GET /api/models"
       },
+      "MonitoringCostSummaryResponse": {
+        "properties": {
+          "scope_id": {
+            "type": "string",
+            "title": "Scope Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "USD"
+          },
+          "alert_setup_cost_usd": {
+            "type": "number",
+            "title": "Alert Setup Cost Usd",
+            "default": 0.0
+          },
+          "trigger_cost_usd": {
+            "type": "number",
+            "title": "Trigger Cost Usd",
+            "default": 0.0
+          },
+          "monitoring_cost_usd": {
+            "type": "number",
+            "title": "Monitoring Cost Usd",
+            "default": 0.0
+          },
+          "total_cost_usd": {
+            "type": "number",
+            "title": "Total Cost Usd",
+            "default": 0.0
+          },
+          "alert_setup_count": {
+            "type": "integer",
+            "title": "Alert Setup Count",
+            "default": 0
+          },
+          "trigger_count": {
+            "type": "integer",
+            "title": "Trigger Count",
+            "default": 0
+          },
+          "active_alert_count": {
+            "type": "integer",
+            "title": "Active Alert Count",
+            "default": 0
+          },
+          "active_symbol_count": {
+            "type": "integer",
+            "title": "Active Symbol Count",
+            "default": 0
+          },
+          "active_symbols": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Active Symbols"
+          },
+          "total_symbol_hours": {
+            "type": "number",
+            "title": "Total Symbol Hours",
+            "default": 0.0
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope_id"
+        ],
+        "title": "MonitoringCostSummaryResponse",
+        "description": "Accumulated monitoring cost for one scope_id session."
+      },
       "OHLCData": {
         "properties": {
           "timestamp": {
@@ -4308,6 +4463,63 @@
         ],
         "title": "RelatedAssetsResponse",
         "description": "Response for GET /api/assets/{symbol}/related"
+      },
+      "ServiceCostSummaryResponse": {
+        "properties": {
+          "scope_id": {
+            "type": "string",
+            "title": "Scope Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "USD"
+          },
+          "model_cost_usd": {
+            "type": "number",
+            "title": "Model Cost Usd",
+            "default": 0.0
+          },
+          "monitor_cost_usd": {
+            "type": "number",
+            "title": "Monitor Cost Usd",
+            "default": 0.0
+          },
+          "total_cost_usd": {
+            "type": "number",
+            "title": "Total Cost Usd",
+            "default": 0.0
+          },
+          "session_cost": {
+            "$ref": "#/components/schemas/OpenRouterSessionCostResponse",
+            "nullable": true
+          },
+          "monitoring_cost": {
+            "$ref": "#/components/schemas/MonitoringCostSummaryResponse",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope_id"
+        ],
+        "title": "ServiceCostSummaryResponse",
+        "description": "Combined backend service cost for one scope_id session."
       },
       "SupportedTradingAssetsResponse": {
         "properties": {

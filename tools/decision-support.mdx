@@ -1,6 +1,6 @@
 ---
 title: "Decision Support Tools"
-description: "How Rabit uses deterministic tools for sizing, scanning, and structured trade review"
+description: "How Rabit uses deterministic tools for sizing, scanning, and structured trade review."
 sidebarTitle: "Decision Support"
 ---
 
@@ -8,15 +8,23 @@ Decision-support tools exist for workflows where Rabit should be more structured
 
 This is the family for outputs that should feel repeatable, auditable, and easier to trust.
 
-## Full coverage
+## What this family is for
 
-| Tool | What it does | Where the value comes from | Failure model |
+| Product need | How decision-support tools help |
+| --- | --- |
+| convert trade ideas into repeatable numbers | sizing tools use deterministic formulas instead of prose guesses |
+| compare a tracked market universe quickly | scan tools rank assets from current state instead of arbitrary model preference |
+| preserve a post-trade lesson in a structured way | debrief tools write a durable review instead of leaving it inside chat history |
+
+## All decision-support tools
+
+| Tool | Useful for | Value source | Failure shape |
 | --- | --- | --- | --- |
-| `calculate_position_size` | computes position size from entry, stop, and risk budget | pure deterministic formula logic | raises validation error on invalid prices, side, or missing risk inputs |
-| `scan_markets` | ranks the tracked asset universe | tracked assets, `market_context`, market service, live price data | invalid sort/bias raises; per-asset failures are skipped rather than crashing the scan |
-| `create_trade_debrief` | stores a structured post-trade review | trade debrief service + authenticated `user_id` | raises when the request has no active user or persistence fails |
+| `calculate_position_size` | compute size from entry, stop, and risk budget | pure deterministic formula logic | validation error on invalid prices, side, or missing risk inputs |
+| `scan_markets` | rank the tracked asset universe | tracked assets, `market_context`, market service, and live price data | invalid sort or bias raises; per-asset failures are skipped |
+| `create_trade_debrief` | store a structured post-trade review | trade debrief service plus authenticated `user_id` | missing user or persistence failure |
 
-## How this family fits into the product
+## How this family works
 
 ```mermaid
 flowchart LR
@@ -28,6 +36,14 @@ flowchart LR
     D --> F
     E --> F
 ```
+
+## Per-tool breakdown
+
+| Tool | Useful for | How it works | Main output |
+| --- | --- | --- | --- |
+| `calculate_position_size` | compute a position size from explicit trade parameters | applies deterministic sizing logic to entry, stop, risk budget, and side | structured size calculation |
+| `scan_markets` | compare tracked assets quickly | evaluates the tracked asset universe using current market context and scan settings | ranked market list |
+| `create_trade_debrief` | save a structured trade review | validates user identity and writes a normalized debrief record to storage | persisted debrief record |
 
 ## Why this family exists
 
@@ -42,7 +58,7 @@ flowchart LR
 | Tool | Internal handling | What the agent should do |
 | --- | --- | --- |
 | `calculate_position_size` | hard-fails on invalid inputs such as zero prices or missing risk budget | ask for corrected inputs instead of improvising a number |
-| `scan_markets` | validates sorting/bias, but quietly skips individual assets that fail during fetch | return the matched universe and mention that the scan is over tracked assets only |
+| `scan_markets` | validates sorting and bias, but quietly skips individual assets that fail during fetch | return the matched universe and mention that the scan is over tracked assets only |
 | `create_trade_debrief` | requires active user identity and valid storage path | explain that debrief persistence requires an authenticated user context |
 
 ## Why this family matters

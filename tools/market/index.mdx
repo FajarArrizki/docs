@@ -37,6 +37,15 @@ They now also power `research_snapshot` when the request needs a broader news-an
 | `start_price_monitor` | starts price poller | price monitor runtime |
 | `stop_price_monitor` | stops price poller | price monitor runtime |
 
+## What this family is for
+
+| Product need | How market tools help |
+| --- | --- |
+| answer "what is happening now" | `get_price` reads live market state instead of guessing |
+| answer "what changed around this asset" | news tools attach recent headlines and broader public context |
+| keep watching a setup after the first turn | monitoring tools store alerts and emit trigger events |
+| enrich the final answer without over-opening the tool surface | `market_snapshot` and `research_snapshot` use a bounded subset of this family |
+
 ## How this family powers `market_snapshot`
 
 | Node input | Tool used | Why it matters |
@@ -60,6 +69,13 @@ without pretending that every market question needs a full research pass first.
 | `WS /api/ws/news` | live news snapshot plus incremental updates |
 | `market_context.news_context.tail_titles` | short headline tail that can be fed back into the agent turn |
 
+Price monitoring also exposes a product-facing event surface:
+
+| Surface | What it gives the client |
+| --- | --- |
+| `price_alert_triggered` subscriber event | structured alert hit payload with `default_prompt` for notifications or chat prefill |
+| `add_price_alert` response | preview `default_prompts` for validation and invalidation branches |
+
 That means the same retrieval family supports:
 
 - frontend news cards
@@ -80,6 +96,27 @@ flowchart LR
     H --> I
 ```
 
+## Per-tool breakdown
+
+| Tool | Useful for | How it works | Main output |
+| --- | --- | --- | --- |
+| `get_price` | live price checks and quick market reads | asks `MarketDataHandler` for the current tracked symbol snapshot | price, 24h move, volume, and related metrics |
+| `web_search` | broader context beyond crypto-native feeds | performs web search against DuckDuckGo and returns compact results | titles, snippets, and URLs |
+| `get_latest_news` | recent category-specific news | queries DuckDuckGo news using a category-driven search query | latest headline list |
+| `search_news_by_keywords` | keyword and regex-driven catalyst search | fetches news results then filters or matches them against the requested keywords | filtered headline list |
+| `get_trending_news` | recent broad crypto narrative scan | queries several trending-style searches and caches the merged results briefly | deduplicated recent headline list |
+| `search_news_by_symbols` | asset-specific headline lookup | runs symbol-oriented news searches and groups the results by symbol | grouped symbol-news map |
+| `start_news_monitoring` | start live headline polling | configures the news monitor keyword set and starts the background loop | started state and monitor config |
+| `stop_news_monitoring` | stop live headline polling | stops the running news monitor loop | stopped state and final stats |
+| `get_monitoring_status` | inspect news monitoring health | reads the current runtime status of the news monitor | running state, keywords, counts, and review mode |
+| `add_price_alert` | track setup validation or invalidation | stores thresholds and optional trade metadata inside the price monitor runtime | alert id, thresholds, and preview prompts |
+| `remove_price_alert` | stop tracking one setup | deletes one stored alert by id | success or not-found result |
+| `list_price_alerts` | inspect all tracked setups | reads the stored alert list from the monitor runtime | active and triggered alert list |
+| `get_price_alert` | inspect one setup in detail | reads a single stored alert by id | one alert object with trigger state |
+| `get_price_monitor_stats` | inspect price monitor health | reads runtime counters and status from the price monitor | running state and monitoring stats |
+| `start_price_monitor` | begin live threshold watching | starts the price monitor polling loop | started state and poll interval |
+| `stop_price_monitor` | pause threshold watching | stops the price monitor polling loop | stopped state |
+
 ## What the agent gets from this family
 
 | Category | What the agent can do with it |
@@ -88,6 +125,7 @@ flowchart LR
 | research context | add fresh public information when market context alone is not enough |
 | monitoring state | tell the user what is currently being tracked or monitored |
 | alert state | reflect whether a setup is still valid or already invalidated |
+| trigger automation state | surface a ready-made next prompt when a level is hit |
 
 ## Error handling inside the tools
 
@@ -97,6 +135,7 @@ flowchart LR
 | web/news search | returns disabled or no-results payloads instead of crashing the turn |
 | price alert operations | validate symbol, direction, exchange, and numeric prices before mutating monitor state |
 | monitor start/stop/stats | catch exceptions and return structured `success: false` responses |
+| trigger delivery | logs callback/broadcast failure but keeps alert state persisted as triggered |
 
 ## What the agent does when market tools fail
 

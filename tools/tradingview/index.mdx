@@ -1,6 +1,6 @@
 ---
 title: "TradingView Tools"
-description: "How Rabit uses TradingView-oriented tools for chart control, indicators, drawings, alerts, and screenshots"
+description: "How Rabit uses TradingView-oriented tools for chart control, indicators, drawings, alerts, and screenshots."
 sidebarTitle: "TradingView"
 ---
 
@@ -8,57 +8,34 @@ TradingView tools are the chart-control tools Rabit uses when a plain price look
 
 They are separate from the generic market family because they interact with a live chart surface, not only with backend market state.
 
+## What this family is for
+
+| Product need | How TradingView tools help |
+| --- | --- |
+| inspect the current workspace | chart-state tools read symbol, timeframe, indicators, and chart mode |
+| read technical evidence | indicator and quote tools pull current chart-linked values |
+| mutate the chart safely | drawing and chart-control tools apply bounded changes through the backend |
+| capture visual proof | screenshot tools turn the current chart state into an artifact the UI and agent can reuse |
+
 ## How the chart-analysis node uses this family
 
-Rabit now uses one composable `chart_analysis` node with two bounded modes:
+Rabit uses one composable `chart_analysis` node with two bounded modes:
 
 | Mode | When it is used | Purpose |
 | --- | --- | --- |
 | `analysis` | chart-heavy reads, indicator checks, technical inspection | inspect the workspace and gather technical evidence |
 | `write` | explicit chart-mutation requests such as clear, mark, plot, or annotate | apply controlled drawings inside the current market-specialist path |
 
-This is intentionally still one node.
+This is intentionally still one node. The planner switches the node into `analysis` or `write` mode and injects a mode-specific instruction into the turn-level system prompt.
 
-Rabit does not hardcode a second chart runtime. Instead, the planner switches the node into `analysis` or `write` mode and injects a mode-specific instruction into the turn-level system prompt. That keeps the chart workflow composable while still letting the backend enforce different guardrails for reading versus writing.
+## Analysis and write boundaries
 
-### Analysis mode
+| Mode | Allowed | Blocked |
+| --- | --- | --- |
+| `analysis` | `tv_get_state`, `tv_set_symbol` when scope is global, `tv_set_timeframe`, `tv_get_quote`, `tv_get_indicator_values`, `tv_add_indicator`, optional `tv_remove_indicator`, optional `tv_capture_screenshot` | drawing tools, alert tools, unrestricted chart mutation |
+| `write` | `tv_get_state`, `tv_set_symbol` when scope is global, `tv_set_timeframe`, `tv_clear_drawings` on explicit intent, `tv_draw_horizontal_line`, `tv_draw_line`, `tv_capture_screenshot` | alert tools, indicator-management tools, direct drawing access from the final model |
 
-| Allowed in `chart_analysis` analysis mode | Blocked from the LLM-facing schema |
-| --- | --- |
-| `tv_get_state` | drawing tools |
-| `tv_set_symbol` when market scope is global | alert tools |
-| `tv_set_timeframe` | chart-mutation tools |
-| `tv_get_quote` | |
-| `tv_get_indicator_values` | |
-| `tv_add_indicator` | |
-| `tv_remove_indicator` when cleanup is needed later | |
-| `tv_capture_screenshot` if the chart workflow needs visual evidence | |
-
-In this mode, the node behaves like a technical inspection step. It can align symbol or timeframe, add indicators temporarily, read values, and return trusted observations to the final answer.
-
-### Write mode
-
-| Allowed in `chart_analysis` write mode | Intentionally blocked |
-| --- | --- |
-| `tv_get_state` | alert tools |
-| `tv_set_symbol` when market scope is global | indicator-management tools |
-| `tv_set_timeframe` | unrestricted chart mutation |
-| `tv_clear_drawings` on explicit user intent | free-form drawing access from the final model |
-| `tv_draw_horizontal_line` | |
-| `tv_draw_line` when the request includes enough coordinates | |
-| `tv_capture_screenshot` after successful chart changes | |
-
-In write mode, the node itself performs the chart mutation work. The final model does not get direct drawing tools at all. It only sees safe UI tools plus the node's trusted observation payload, which means the backend remains the real owner of chart mutations.
-
-## How write mode is gated
-
-| Rule | Why it exists |
-| --- | --- |
-| low-confidence routing does not enter write mode | prevents chart mutation on ambiguous requests |
-| clarification-required routing does not enter write mode | prevents writes before the request is understood |
-| `locked_asset` scope blocks symbol switching | prevents cross-asset mutation from a locked screen |
-| drawing requires concrete prices or line coordinates | prevents vague chart-mutation behavior |
-| screenshot capture runs after successful write actions | gives the UI and final answer visual confirmation |
+## How this family works
 
 ```mermaid
 flowchart LR
@@ -73,57 +50,60 @@ flowchart LR
     H --> I
 ```
 
-## Full coverage of the TradingView family
+## All TradingView tools
 
-| Category | Tools | What they do |
-| --- | --- | --- |
-| Chart control | `tv_get_state`, `tv_set_symbol`, `tv_set_timeframe`, `tv_set_chart_type`, `tv_scroll_to_date` | inspect and move the chart itself |
-| Data reading | `tv_get_quote`, `tv_get_ohlcv`, `tv_get_indicator_values` | read quote, bars, and current indicator output |
-| Indicators | `tv_add_indicator`, `tv_remove_indicator`, `tv_set_indicator_inputs` | manage technical indicators |
-| Drawing | `tv_draw_line`, `tv_draw_horizontal_line`, `tv_clear_drawings` | annotate levels and chart structure |
-| Alerts | `tv_create_alert`, `tv_list_alerts`, `tv_delete_alert` | manage chart alerts |
-| Screenshot | `tv_capture_screenshot` | capture chart image for UI or analysis |
+| Tool | Useful for | Main value source | Failure shape |
+| --- | --- | --- | --- |
+| `tv_get_state` | inspect current chart state | TradingView bridge API | connectivity or bridge read failure |
+| `tv_set_symbol` | switch chart symbol | TradingView bridge API | invalid symbol or bridge failure |
+| `tv_set_timeframe` | switch timeframe | TradingView bridge API | invalid timeframe or bridge failure |
+| `tv_set_chart_type` | switch chart style | TradingView bridge API | invalid chart type or bridge failure |
+| `tv_scroll_to_date` | jump to historical region | TradingView bridge API | invalid date or bridge failure |
+| `tv_get_quote` | inspect chart-linked quote | TradingView bridge API | read failure |
+| `tv_get_ohlcv` | inspect bars or summary stats | TradingView bridge API | read failure |
+| `tv_get_indicator_values` | inspect visible indicator output | TradingView bridge API | read failure |
+| `tv_add_indicator` | add technical indicator | TradingView bridge API | invalid input or bridge failure |
+| `tv_remove_indicator` | remove one indicator | TradingView bridge API | not-found or bridge failure |
+| `tv_set_indicator_inputs` | change indicator settings | TradingView bridge API | invalid input or bridge failure |
+| `tv_draw_line` | draw one line | TradingView bridge API | validation or bridge failure |
+| `tv_draw_horizontal_line` | draw one horizontal level | TradingView bridge API | validation or bridge failure |
+| `tv_clear_drawings` | clear chart drawings | TradingView bridge API | bridge failure |
+| `tv_create_alert` | create chart alert | TradingView bridge API | validation or bridge failure |
+| `tv_list_alerts` | inspect chart alerts | TradingView bridge API | bridge failure |
+| `tv_delete_alert` | delete chart alert | TradingView bridge API | not-found or bridge failure |
+| `tv_capture_screenshot` | capture chart image | TradingView bridge API | bridge failure |
 
-## How value is produced
+## Per-tool breakdown
 
-```mermaid
-flowchart LR
-    A[Agent] --> B[TradingView tool layer]
-    B --> C[TradingView client]
-    C --> D[Local chart API on port 3001]
-    D --> E[TradingView chart runtime]
-    E --> F[Chart state, indicators, alerts, screenshot]
-    F --> A
-```
-
-## Why this family exists separately
-
-| Market tools are good for... | TradingView tools are needed for... |
-| --- | --- |
-| prices, news, monitoring, lightweight context | chart state, visual indicators, annotations, screenshots, and chart-linked alerts |
-
-This split matters because a chart workflow has different failure modes and different user expectations from a generic market lookup.
-
-## Error handling inside this family
-
-The TradingView client normalizes infrastructure errors before the agent sees them.
-
-| Error source | How it is handled |
-| --- | --- |
-| API server not found | returns a structured connection error with a suggestion to start the chart API |
-| timeout | returns a structured timeout error instead of hanging the turn |
-| server-side 500 | returns a normalized server error payload |
-| invalid response type | returns a structured format error |
-| invalid input at tool layer | chart, alert, and indicator tools validate input locally before calling the bridge |
+| Tool | Useful for | How it works | Main output |
+| --- | --- | --- | --- |
+| `tv_get_state` | inspect current workspace state | reads symbol, timeframe, chart type, and related chart state through the bridge | chart-state snapshot |
+| `tv_set_symbol` | switch the chart to another asset | sends a symbol-change command to the chart bridge | updated chart state |
+| `tv_set_timeframe` | switch the chart timeframe | sends a timeframe-change command to the chart bridge | updated chart state |
+| `tv_set_chart_type` | switch the chart visualization style | sends a chart-type command to the bridge | updated chart state |
+| `tv_scroll_to_date` | move to a historical region | sends a date-scroll command to the bridge | updated chart viewport |
+| `tv_get_quote` | inspect quote-level chart data | reads chart-linked quote information through the bridge | quote snapshot |
+| `tv_get_ohlcv` | inspect bars or summary stats | reads OHLCV-oriented data through the bridge | OHLCV or summary data |
+| `tv_get_indicator_values` | inspect technical values | reads visible indicator output from the chart | indicator-value snapshot |
+| `tv_add_indicator` | add an indicator | sends an add-indicator command through the bridge | indicator add result |
+| `tv_remove_indicator` | remove an indicator | sends a remove command for one indicator entity | indicator removal result |
+| `tv_set_indicator_inputs` | tune indicator settings | sends updated indicator inputs through the bridge | indicator update result |
+| `tv_draw_line` | draw one line | sends explicit coordinates or levels to the drawing bridge | drawing result |
+| `tv_draw_horizontal_line` | mark one horizontal level | sends a horizontal-level draw request to the bridge | drawing result |
+| `tv_clear_drawings` | clear existing annotations | sends a clear-drawings command to the bridge | clear result |
+| `tv_create_alert` | add chart-native alert | sends an alert definition to the bridge | alert creation result |
+| `tv_list_alerts` | inspect chart-native alerts | reads alert state back from the bridge | alert list |
+| `tv_delete_alert` | delete one chart-native alert | sends a delete request for one alert id | delete result |
+| `tv_capture_screenshot` | capture visual proof | requests a chart screenshot, then forwards metadata to the agent, UI stream, and artifact flow | screenshot metadata and optional image block |
 
 ## How screenshot delivery works
 
-`tv_capture_screenshot` now feeds two paths at once:
+`tv_capture_screenshot` now feeds multiple paths at once:
 
 | Destination | What gets sent | Why it matters |
 | --- | --- | --- |
-| Agent runtime | screenshot metadata plus an inline image block when the chart bridge returns a reachable image URL | the model can analyze the actual chart image instead of only reading a text URL |
-| Streaming system/UI | a `chart_screenshot` event with `region`, `screenshot_url`, and availability metadata | the frontend can render or persist the screenshot while the agent continues the turn |
+| Agent runtime | screenshot metadata plus an inline image block when the bridge returns a reachable image URL | the model can analyze the actual chart image instead of only a text URL |
+| Streaming system or UI | a `chart_screenshot` event with region, screenshot URL, and availability metadata | the frontend can render or persist the screenshot while the agent continues the turn |
 | Pipeline artifact store | persisted chart-write screenshot record when the turn has a stable `scope_id` | the screenshot can be referenced again later instead of living only inside one turn |
 
 ```mermaid
@@ -137,18 +117,18 @@ sequenceDiagram
     T->>B: CAPTURE_SCREENSHOT
     B-->>T: screenshot_url
     T-->>U: chart_screenshot event
-    T-->>A: tool_result text + image block
+    T-->>A: tool_result text plus image block
 ```
 
-The chart and alert tools then add their own friendly validation layer:
+## Error handling inside this family
 
-| Example | Tool behavior |
+| Error source | How it is handled |
 | --- | --- |
-| invalid timeframe | `tv_set_timeframe` returns valid options and a formatting hint |
-| invalid chart type | `tv_set_chart_type` returns accepted values |
-| invalid date | `tv_scroll_to_date` returns the expected ISO format |
-| bad alert condition | `tv_create_alert` returns valid conditions |
-| missing alert id | `tv_delete_alert` suggests calling `tv_list_alerts` first |
+| API server not found | returns a structured connection error with a suggestion to start the chart API |
+| timeout | returns a structured timeout error instead of hanging the turn |
+| server-side 500 | returns a normalized server error payload |
+| invalid response type | returns a structured format error |
+| invalid input at tool layer | chart, alert, and indicator tools validate input locally before calling the bridge |
 
 ## What the agent does when TradingView tools fail
 

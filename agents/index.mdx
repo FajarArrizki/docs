@@ -51,6 +51,7 @@ It also means the backend can evolve into a real router-plus-specialist architec
 | Market and request context | explains why the same prompt can behave differently depending on the current screen or scope |
 | Intent routing | shows how Rabit narrows tool access and response behavior |
 | Exchange behavior | explains why Backpack and Drift are handled differently inside the agent |
+| Service cost | explains where available models come from and how Rabit now separates model cost from monitoring cost |
 
 ## What is true today
 
@@ -164,6 +165,85 @@ The pipeline family now lives together under `agents/pipeline/`.
 | `agents/pipeline/artifacts.py` | session-scoped artifact persistence for pipeline outputs such as chart-write screenshots |
 
 This package is now the source of truth for the pipeline family, so routing, style normalization, market context, and pipeline planning all live in one place.
+
+## Service cost
+
+The agent cost story is no longer just "which model did this turn use?".
+
+Rabit now tracks two backend cost families:
+
+- `model_cost_usd`
+- `monitor_cost_usd`
+
+That split exists because OpenRouter usage and price-alert monitoring are different kinds of backend work.
+
+For the model side, Rabit still uses the OpenRouter catalog manager:
+
+- `agents/openrouter/models.py`
+- `agents/openrouter/database.py`
+- runtime cache file: `data/openrouter_models.json`
+
+### Largest provider groups in the current snapshot
+
+| Provider | Total models | Tool-capable | Reasoning-capable |
+| --- | --- | --- | --- |
+| `openai` | 61 | 56 | 34 |
+| `qwen` | 47 | 44 | 22 |
+| `google` | 31 | 16 | 16 |
+| `mistralai` | 25 | 22 | 1 |
+| `anthropic` | 14 | 14 | 12 |
+| `meta-llama` | 14 | 6 | 0 |
+| `z-ai` | 13 | 13 | 12 |
+| `deepseek` | 11 | 8 | 9 |
+| `nvidia` | 10 | 9 | 9 |
+| `x-ai` | 10 | 9 | 8 |
+
+## How model and monitoring cost flow through the backend
+
+```mermaid
+flowchart LR
+    A[OpenRouter model catalog] --> B[OpenRouterModels manager]
+    B --> C[data/openrouter_models.json]
+    C --> D[/api/models]
+    E[Price alert lifecycle] --> F[Monitoring cost ledger]
+    G[OpenRouter session usage] --> H[Model cost ledger]
+    F --> I[/api/service-costs/{scope_id}]
+    H --> I
+    I --> J[frontend and future contract settlement]
+```
+
+## What model metadata the backend tracks
+
+| Field | Why it matters |
+| --- | --- |
+| `id` | stable model identifier used by the backend and client |
+| `name` | human-readable display name |
+| `provider` | groups models by vendor or upstream family |
+| `context_length` | tells the product how much prompt context the model supports |
+| `input_price` / `output_price` | supports cost-aware model selection and reporting |
+| `supports_tools` | tells the system whether tool-calling workflows are viable |
+| `supports_reasoning` | tells the system whether reasoning-capable filtering is possible |
+| `enabled` | lets the backend disable models without deleting them from the catalog |
+
+## Why this matters for the agent
+
+The agent runtime still uses one chosen model per turn, but the backend around it now understands both:
+
+- the wider model universe
+- the wider service-cost picture
+
+That means Rabit can now:
+
+- expose the current model universe to clients
+- filter by tools, reasoning, provider, context length, and pricing
+- keep a stable local cache instead of depending on a fresh network call every time
+- expose `model_cost_usd`, `monitor_cost_usd`, and `total_cost_usd` as one settlement-friendly summary
+
+For the deeper breakdown, use:
+
+- [Service Cost Index](./service-cost)
+- [Model](./service-cost/model)
+- [Service Cost](./service-cost/service-cost)
 
 ## What improved in the latest quality pass
 

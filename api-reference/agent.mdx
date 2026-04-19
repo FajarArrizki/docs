@@ -1,6 +1,6 @@
 ---
 title: "Agent Architecture"
-description: "How the Rabit agent API handles uploads, chat, streaming, and session cost accumulation"
+description: "How the Rabit agent API handles uploads, chat, streaming, and combined service cost accumulation"
 ---
 
 ## What this section explains
@@ -13,7 +13,7 @@ Use it to understand:
 - why uploads, chat, and streaming are split into separate flows
 - how runtime context travels with each request
 - how the pipeline now injects specialist-like node observations before the final answer
-- how OpenRouter cost is accumulated at session scope
+- how model cost and monitoring cost are accumulated at session scope
 
 Use the OpenAPI endpoint pages in this tab for exact request and response schema.
 
@@ -34,7 +34,8 @@ flowchart TD
     J --> K[Response composer]
     K --> L[Tool runtime]
     K --> M[Memory and context services]
-    K --> N[OpenRouter session cost ledger]
+    K --> N[OpenRouter model cost ledger]
+    J --> P[Monitoring cost ledger]
     J --> O[Pipeline artifact store]
 ```
 
@@ -184,25 +185,39 @@ That split is intentional:
 
 So the agent API should not be treated as the same transport layer as real-time price streaming.
 
-## Session cost model
+## Service cost model
 
-OpenRouter billing metadata is accumulated at session scope, not only per assistant turn.
+Rabit now separates:
 
-The unit of accumulation is `scope_id`.
+- `model_cost_usd`
+- `monitor_cost_usd`
+
+before exposing one combined `service_cost` summary.
+
+The unit of accumulation is still `scope_id`.
 
 ```mermaid
 flowchart LR
-    A[Chat turn 1] --> D[Scope cost ledger]
+    A[Chat turn 1] --> D[Model cost ledger]
     B[Chat turn 2] --> D
     C[Compression or tool follow-up] --> D
-    D --> E[session_cost summary]
+    E[Alert setup and monitoring lifecycle] --> F[Monitoring cost ledger]
+    D --> G[service_cost summary]
+    F --> G
 ```
 
 This design is better for pay-as-you-go billing because:
 
 - the client does not have to recalculate usage itself
 - multi-turn conversations can be charged as one session unit
-- background routing and compression cost can be included in one total
+- background routing, compression, and monitoring cost can be included in one total
+
+The main API surfaces are now:
+
+- `POST /api/agent/chat` as `service_cost`
+- the final `done` SSE event for `POST /api/agent/chat/stream`
+- `GET /api/openrouter/session-costs/{scope_id}` for model-only cost
+- `GET /api/service-costs/{scope_id}` for combined model + monitoring cost
 
 ## Pipeline artifacts
 
@@ -234,7 +249,7 @@ Key choices:
 - uploads separated from chat execution
 - request context treated as first-class runtime input
 - pipeline node observations treated as first-class backend evidence
-- session cost exposed as a frontend-friendly aggregate
+- service cost exposed as a frontend-friendly aggregate
 
 ## Exact endpoint details
 
@@ -250,7 +265,7 @@ Use this guide for:
 - architecture
 - transport model
 - runtime context design
-- session cost reasoning
+- service cost reasoning
 
 ## Related docs
 

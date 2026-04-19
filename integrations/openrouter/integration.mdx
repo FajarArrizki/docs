@@ -90,7 +90,7 @@ response = await agent.process_trading_query("What's the price of SOL?")
 
 ## Session Cost Tracking
 
-When OpenRouter is enabled, the backend can accumulate estimated usage cost per chat/session scope.
+When OpenRouter is enabled, the backend can accumulate estimated model usage cost per chat/session scope.
 
 How it works:
 
@@ -99,8 +99,10 @@ How it works:
 3. the backend stores the accumulated summary in `OPENROUTER_SESSION_COST_DB_PATH`
 4. the latest accumulated summary is returned in:
    - `POST /api/agent/chat` as `session_cost`
+   - `POST /api/agent/chat` as part of combined `service_cost`
    - the final `done` SSE event for `POST /api/agent/chat/stream`
    - `GET /api/openrouter/session-costs/{scope_id}`
+   - `GET /api/service-costs/{scope_id}` for combined model + monitoring cost
 
 Important notes:
 
@@ -108,6 +110,7 @@ Important notes:
 - if no `scope_id` is provided, session accumulation is skipped
 - values are estimated using the locally stored OpenRouter model pricing data
 - this summary is designed to feed downstream billing or contract-signing flows
+- monitoring cost is tracked separately, then merged later into the service-cost summary
 
 ## ðŸ’° Cost Comparison
 
