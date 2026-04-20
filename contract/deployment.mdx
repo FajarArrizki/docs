@@ -9,6 +9,7 @@ description: "Deployment workflow for localnet, devnet, and production environme
 - Anchor CLI installed
 - Wallet with sufficient SOL
 - `.env` configured
+- `solana config get` points to a real keypair path
 
 ## Step-by-Step Deployment
 
@@ -29,6 +30,14 @@ Set:
 
 ```bash
 anchor build
+```
+
+If you want to regenerate the IDL directly from the program crate:
+
+```bash
+cd programs/rabit-contract
+anchor idl build -o ../../target/idl/rabit_contract.json
+anchor idl type ../../target/idl/rabit_contract.json -o ../../target/types/rabit_contract.ts
 ```
 
 ### 3. Deploy to Devnet
@@ -53,11 +62,11 @@ solana program show <PROGRAM_ID>
 
 ### Additional Steps for Mainnet:
 
-1. **Security Audit** - Get external audit
-2. **Test on Devnet** - Thoroughly test all features
-3. **Backup Keys** - Secure backup of all keypairs
-4. **Multi-sig** - Consider using multi-sig for authority
-5. **Monitoring** - Setup monitoring and alerts
+1. **Test on Devnet** - Thoroughly test all features
+2. **Backup Keys** - Secure backup of all keypairs
+3. **Multi-sig** - Consider using multi-sig for authority
+4. **Monitoring** - Setup monitoring and alerts
+5. **External Review** - Get an external security review before production use
 
 ### Deploy to Mainnet:
 

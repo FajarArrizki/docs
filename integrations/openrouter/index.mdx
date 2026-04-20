@@ -24,7 +24,7 @@ OpenRouter gives the backend a practical abstraction for those needs.
 | --- | --- |
 | model routing | switch or compare supported model options |
 | model catalog | store model metadata such as pricing and capability support |
-| pricing awareness | estimate usage cost per session or scope |
+| pricing awareness | estimate model usage cost per session or scope |
 | caching | avoid re-fetching model metadata unnecessarily |
 
 ## Why this matters to the product
@@ -35,7 +35,18 @@ It supports a product direction where Rabit can:
 
 - choose appropriate model paths
 - expose model-aware operational behavior
-- support pay-as-you-go cost accounting
+- support model-side cost accounting that feeds larger settlement stories
+
+## What OpenRouter is and is not
+
+OpenRouter is an important source of model metadata and model-side pricing, but it is not the entire billing story.
+
+| Statement | Meaning |
+| --- | --- |
+| OpenRouter is a model catalog and pricing source | it tells Rabit which models exist and how model-side pricing can be estimated |
+| OpenRouter is a model usage cost source | it can explain the cost of LLM-side work |
+| OpenRouter is not the only backend cost source | monitoring or other backend work may add cost outside the model provider path |
+| final service cost can be broader than OpenRouter cost | Rabit can combine model cost with monitoring/service cost into a settlement-ready summary |
 
 ## Integration model
 
@@ -46,6 +57,7 @@ flowchart LR
     B --> D[Model catalog metadata]
     D --> E[Pricing cache]
     C --> F[Session cost accumulation]
+    F --> G[Combined service-cost summary]
 ```
 
 ## Current product status
@@ -67,7 +79,8 @@ It treats model usage as an operational layer with:
 - explicit model selection
 - cached metadata
 - pricing awareness
-- session-level cost tracking
+- session-level model cost tracking
+- a bridge into broader service-cost accounting
 
 That makes the backend more realistic as a product foundation.
 
@@ -77,4 +90,5 @@ That makes the backend more realistic as a product foundation.
 - [Models](./models)
 - [Caching](./caching)
 - [Models API](/api-reference/models)
+- [Service Cost](/agents/service-cost/service-cost)
 

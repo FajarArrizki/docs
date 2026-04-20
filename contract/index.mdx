@@ -1,12 +1,23 @@
 ---
 title: "Rabit Contract"
-description: "The Solana program layer for pay-as-you-go AI usage, delegated backend authority, user vaults, and on-chain usage accounting."
+description: "The Solana program layer for pay-as-you-go charging, delegated backend authority, user vaults, and on-chain usage accounting."
 sidebarTitle: "Overview"
 ---
 
-Rabit Contract is the Solana program that lets the product charge for AI usage in a wallet-native way.
+Rabit Contract is the Solana program that lets the product charge for backend work in a wallet-native way.
 
 Instead of keeping pricing and authorization fully off-chain, it introduces a contract-side payment and permission layer built around vaults, delegated signers, usage records, and fee accounting.
+
+## Why it matters
+
+Rabit Contract gives the product a simple charging model with real operational weight:
+
+- the user preloads SOL into a vault
+- the user delegates limited charging authority to the backend
+- the backend records one settlement-ready charge
+- the contract enforces the debit and stores an immutable receipt
+
+That makes the contract more than a payment gimmick. It shows how backend AI work and monitoring work can become a user-auditable on-chain charge path.
 
 ## What it manages
 
@@ -17,13 +28,13 @@ Instead of keeping pricing and authorization fully off-chain, it introduces a co
 | usage records | create an immutable on-chain log of each recorded charge |
 | platform config | stores admin authority, backend authority, fee settings, and pause state |
 | fee vault | accumulates platform fees |
-| model registry | stores optional model metadata and pricing hints |
+| model registry | stores optional model catalog metadata and pricing hints |
 
 ## Why it exists
 
 | Problem | Contract-side answer |
 | --- | --- |
-| AI usage billing is usually opaque and off-chain | usage can be charged against an on-chain vault |
+| model and monitoring billing are usually opaque and off-chain | backend cost can be charged against an on-chain vault |
 | backend automation often needs dangerous long-lived authority | delegated signers let the user scope time and spend limits |
 | fee and markup accounting is hard to audit | fee flow becomes part of program state |
 | Solana apps keep rebuilding the same payment pattern | the contract turns it into a reusable primitive |
@@ -39,9 +50,18 @@ sequenceDiagram
     User->>Contract: initialize_vault
     User->>Contract: deposit_to_vault
     User->>Contract: create_delegated_signer
-    Backend->>Contract: record_ai_usage_with_delegation
+    Backend->>Contract: record_ai_usage_with_delegation(base_cost, service_cost, ...)
     Contract-->>Backend: debit vault, credit fee vault, emit usage record
 ```
+
+## Key Product Value
+
+| Theme | Rabit's answer |
+| --- | --- |
+| wallet-native trust | users fund a dedicated prepaid vault |
+| backend automation without unlimited trust | delegated signer uses expiry and spending caps |
+| transparent charging | every accepted charge creates an immutable usage record |
+| extensible billing model | the contract supports both model cost and service cost |
 
 ## Read this next
 
@@ -49,5 +69,6 @@ sequenceDiagram
 | --- | --- |
 | the real build and test workflow | [/getting-started/run/quickstart-contract](/getting-started/run/quickstart-contract) |
 | architecture and account model | [/contract/architecture](/contract/architecture) |
+| how model cost and monitoring cost become one settlement call | [/contract/service-cost](/contract/service-cost) |
 | instruction-level reference | [/contract/api-reference](/contract/api-reference) |
 | security analysis | [/contract/security](/contract/security) |

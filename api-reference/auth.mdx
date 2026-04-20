@@ -97,6 +97,29 @@ This flow uses challenge-response verification.
 | the backend issues a JWT only after successful verification | keeps bearer access tied to real proof |
 | later requests use bearer auth instead of repeating wallet signing each time | keeps the product usable in normal flow |
 
+## Operational auth lifecycle
+
+The high-level architecture is already clear, but implementers usually also need to understand the expected lifecycle behavior.
+
+| Operational concern | Expected behavior |
+| --- | --- |
+| nonce lifetime | should be short-lived and treated as single-use |
+| nonce reuse | should be rejected after successful verification or expiry |
+| JWT lifetime | should be treated as a session credential with explicit expiry |
+| expired JWT behavior | client should restart the sign-in flow rather than assume silent recovery |
+| refresh behavior | if no refresh-token flow exists, re-authentication is the safe default |
+
+The exact TTL values belong in the backend implementation and endpoint-level examples, but the architectural rule is simple: challenge material should be short-lived, and bearer tokens should be finite-lived rather than effectively permanent.
+
+## Client expectations
+
+For frontend and mobile teams, the safest operational assumption is:
+
+1. request a new nonce whenever sign-in starts
+2. sign and verify immediately rather than caching a challenge
+3. store the JWT as a session credential
+4. if the JWT expires or verification fails, restart the wallet sign-in flow
+
 ## Why this design
 
 ### Why wallet sign-in first

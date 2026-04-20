@@ -137,7 +137,7 @@ So the agent API should not be treated as the same transport layer as real-time 
 
 ## Session cost model
 
-OpenRouter billing metadata is accumulated at session scope, not only per assistant turn.
+Model-side billing metadata is accumulated at session scope, not only per assistant turn.
 
 The unit of accumulation is `scope_id`.
 
@@ -147,6 +147,7 @@ flowchart LR
     B[Chat turn 2] --> D
     C[Compression or tool follow-up] --> D
     D --> E[session_cost summary]
+    E --> F[service_cost summary when monitoring or other backend work exists]
 ```
 
 This design is better for pay-as-you-go billing because:
@@ -154,6 +155,24 @@ This design is better for pay-as-you-go billing because:
 - the client does not have to recalculate usage itself
 - multi-turn conversations can be charged as one session unit
 - background routing and compression cost can be included in one total
+
+## From session cost to service cost
+
+`session_cost` is still useful because it explains model usage clearly, but it is not always the final billing object.
+
+When the backend also performs work such as monitoring or alert-related processing, Rabit can combine:
+
+- model usage cost
+- monitoring/service cost
+
+into one service-cost summary that is easier to pass downstream into settlement or contract charging.
+
+```mermaid
+flowchart LR
+    A[Agent turns] --> B[session_cost ledger]
+    B --> D[combined service-cost summary]
+    C[Monitoring and backend work] --> D
+```
 
 ## Design principles
 
@@ -182,9 +201,11 @@ Use this guide for:
 - transport model
 - runtime context design
 - session cost reasoning
+- how session cost relates to combined service cost
 
 ## Related docs
 
 - [API Overview](/api-reference/introduction)
 - [API Design](/api-reference/design)
 - [Auth Architecture](/api-reference/auth)
+- [Service Cost](/agents/service-cost/service-cost)

@@ -1,650 +1,112 @@
 ---
 title: "Architecture Specification"
-description: "Detailed technical architecture specification for the Rabit Contract."
+description: "A concise technical specification of the Rabit Contract's current on-chain model."
 ---
 
-## 1. State Layout & Account Structure
+This page is the technical companion to the higher-level architecture page. It keeps the current implementation easy to reference without turning into an internal audit notebook.
 
-### 1.1 Core Accounts
+## Program Crate
 
-#### PlatformConfig (Singleton)
-**Purpose**: Global platform configuration and fee management
+The on-chain program lives at:
 
-**PDA Seeds**: `["config"]`
-
-**Authority**:
-- `authority`: Admin who can update config and claim fees
-- `backend_authority`: Backend wallet authorized to record AI usage
-
-**Fields**:
-```rust
-pub struct PlatformConfig {
-    pub authority: Pubkey,              // Admin authority
-    pub backend_authority: Pubkey,      // Backend authority for usage recording
-    pub platform_fee_bps: u16,          // Platform fee (basis points)
-    pub default_markup_bps: u16,        // Default backend markup
-    pub fee_vault: Pubkey,              // Fee collection vault PDA
-    pub total_fees_collected: u64,      // Cumulative platform fees
-    pub total_markup_collected: u64,    // Cumulative markup fees
-    pub is_paused: bool,                // Emergency pause flag
-    pub bump: u8,
-    pub fee_vault_bump: u8,
-}
+```text
+programs/rabit-contract/
 ```
 
-**Access Control**:
-- Only `authority` can: update fees, update authorities, toggle pause, claim fees
-- `backend_authority` can: record AI usage (with delegation)
-- Anyone can: read config
+The main source layout is:
 
----
-
-#### Fee Vault (Singleton PDA)
-**Purpose**: Collects all platform fees from AI usage
-
-**PDA Seeds**: `["fee_vault"]`
-
-**Authority**: Controlled by PlatformConfig (uses fee_vault_bump for signing)
-
-**Type**: Native SOL account (AccountInfo, not `Account<T>`)
-
-**Access Control**:
-- Only `authority` can withdraw via `claim_fees()`
-- Receives transfers during `record_ai_usage()` calls
-
----
-
-#### ModelRegistry (Per-Model Account)
-**Purpose**: Registry of AI models with pricing and metadata
-
-**PDA Seeds**: `["model_registry", model_id.as_bytes()]`
-
-**Authority**: Platform admin (via PlatformConfig.authority)
-
-**Fields**:
-```rust
-pub struct ModelRegistry {
-    pub model_id: String,               // e.g., "gpt-4-turbo"
-    pub provider: String,               // e.g., "openai", "anthropic"
-    pub custom_contract: Option<Pubkey>, // Future: custom pricing contract
-    pub base_cost_per_token: u64,       // Suggested cost (lamports)
-    pub is_active: bool,                // Model availability
-    pub is_verified: bool,              // Admin verified
-    pub features: String,               // "chat,vision,function-calling"
-    pub total_usage_count: u64,         // Usage statistics
-    pub total_tokens_processed: u64,    // Token statistics
-    pub created_at: i64,
-    pub updated_at: i64,
-    pub bump: u8,
-}
+```text
+src/
+├── lib.rs
+├── constants.rs
+├── errors.rs
+└── features/
+    ├── admin/
+    ├── vault/
+    ├── delegation/
+    ├── ai_usage/
+    └── model_registry/
 ```
 
-**Design Decision**: **1 model = 1 account** (not packed registry)
-- Pros: Parallel access, independent updates, extensible per-model
-- Cons: More accounts (acceptable for model count scale)
+## State Accounts
 
-**Optional Usage**: Model registry is **optional** in AI usage recording
-- If provided: validates `is_active` and updates usage stats
-- If not provided: usage recording still works (flexible for new models)
+| Account | PDA seeds | Main fields |
+| --- | --- | --- |
+| `PlatformConfig` | `["config"]` | authority, backend_authority, fee policy, pause state, fee vault pubkey |
+| `Vault` | `["vault", owner]` | owner, balance, totals, usage sequence |
+| `DelegatedSigner` | `["delegated_signer", owner, delegate]` | delegated pubkey, expiry, spending limit, spent amount, active flag |
+| `ModelRegistry` | `["model_registry", model_id]` | provider, pricing hint, features, active flag, usage counters |
+| `AiUsageRecord` | `["ai_usage", vault, usage_sequence]` | model id, base cost, service cost, markup, platform fee, total charged |
 
----
+## Instruction Surface
 
-#### Vault (Per-User Account)
-**Purpose**: User's prepaid balance for AI usage
+| Domain | Instructions |
+| --- | --- |
+| Admin | `initialize_config`, `update_platform_fee`, `update_default_markup`, `update_authority`, `update_backend_authority`, `toggle_pause`, `claim_fees` |
+| Vault | `initialize_vault`, `deposit_to_vault`, `withdraw_from_vault`, `close_vault` |
+| Delegation | `create_delegated_signer`, `revoke_delegated_signer`, `close_delegated_signer` |
+| Model Registry | `register_model`, `update_model`, `deactivate_model` |
+| Usage | `record_ai_usage`, `record_ai_usage_with_delegation` |
 
-**PDA Seeds**: `["vault", owner.key()]`
+## Charging Inputs
 
-**Authority**: `owner` (user who created the vault)
+The backend submits two cost inputs:
 
-**Fields**:
-```rust
-pub struct Vault {
-    pub owner: Pubkey,              // Vault owner
-    pub balance: u64,               // Current balance (lamports)
-    pub total_deposited: u64,       // Lifetime deposits
-    pub total_withdrawn: u64,       // Lifetime withdrawals
-    pub total_ai_usage: u64,        // Lifetime AI spending
-    pub created_at: i64,
-    pub bump: u8,
-}
+| Field | Meaning |
+| --- | --- |
+| `base_cost` | model/provider cost |
+| `service_cost` | monitoring or other backend service cost |
+
+The program computes:
+
+```text
+chargeable_cost   = base_cost + service_cost
+markup_amount     = chargeable_cost * markup_bps / 10000
+cost_after_markup = chargeable_cost + markup_amount
+platform_fee      = cost_after_markup * platform_fee_bps / 10000
+total_charged     = cost_after_markup + platform_fee
 ```
 
-**Vault Type**: **User Vault** (not platform vault, not model-specific)
-- Each user has exactly 1 vault
-- User deposits SOL to prepay for AI usage
-- Charges deducted during AI usage recording
+## Fee Movement
 
-**Access Control**:
-- Only `owner` can: deposit, withdraw
-- `owner` or `delegated_signer` can: trigger AI usage charges
-- Withdrawal protection: Must maintain rent-exempt minimum balance
-
----
-
-#### DelegatedSigner (Per-User-Per-Delegate Account)
-**Purpose**: Temporary authority for backend to auto-sign AI usage
-
-**PDA Seeds**: `["delegated_signer", owner.key(), delegate.key()]`
-
-**Authority**: `owner` (user who created the delegation)
-
-**Fields**:
-```rust
-pub struct DelegatedSigner {
-    pub owner: Pubkey,              // User who delegated
-    pub delegated_pubkey: Pubkey,   // Backend wallet pubkey
-    pub created_at: i64,
-    pub expires_at: i64,            // User-set expiry
-    pub spending_limit: u64,        // Max lamports delegate can spend
-    pub spent_amount: u64,          // Cumulative spent
-    pub is_active: bool,            // Revocation flag
-    pub bump: u8,
-}
+```mermaid
+flowchart LR
+    A[User vault] --> B[Combined charge recorded]
+    B --> C[Protocol fee extracted to fee vault]
+    B --> D[Usage receipt persisted]
+    C --> E[Admin can claim fee vault later]
 ```
 
-**Scope**: Per-user, per-delegate (not global, not per-model)
-- User can create multiple delegations (different delegates)
-- Each delegation has independent spending limit and expiry
+Important detail:
 
----
+- only the platform fee is extracted into `fee_vault`
+- model cost and service cost are reflected in the charge, but remain part of the backend settlement story off-chain
 
-#### AiUsageRecord (Per-Usage Account)
-**Purpose**: Immutable record of each AI usage transaction
+## Delegation Rules
 
-**PDA Seeds**: `["ai_usage", vault.key(), timestamp.to_le_bytes()]`
+Delegated usage is accepted only when all of these are true:
 
-**Authority**: None (immutable after creation)
+- backend signer matches `config.backend_authority`
+- delegated signer is active
+- delegated signer is not expired
+- delegated signer can still spend `total_charged`
+- vault balance covers the charge
 
-**Fields**:
-```rust
-pub struct AiUsageRecord {
-    pub user: Pubkey,                   // User who used AI
-    pub vault: Pubkey,                  // Vault charged
-    pub delegated_signer: Option<Pubkey>, // If delegation used
-    pub model_id: String,               // Model identifier
-    pub usage_type: String,             // "text", "image", "audio", "video"
-    pub tokens_used: u64,               // Token count
-    pub base_cost: u64,                 // Provider cost
-    pub markup_bps: u16,                // Applied markup
-    pub markup_amount: u64,             // Markup in lamports
-    pub platform_fee_bps: u16,          // Applied platform fee
-    pub platform_fee_amount: u64,       // Platform fee in lamports
-    pub total_charged: u64,             // Total deducted from vault
-    pub timestamp: i64,
-    pub bump: u8,
-}
-```
+This gives Rabit a practical automation path without giving the backend direct withdrawal rights over user vaults.
 
-**Storage Strategy**: **Per-usage record** (not aggregated counter)
-- Each AI usage creates a new account
-- Provides full audit trail
-- Timestamp in seed prevents collisions
+## Current Implementation Notes
 
-**Unit of Accounting**:
-- Primary: `tokens_used` (for token-based models)
-- Secondary: `usage_type` (for non-token usage like images)
-- Cost: `base_cost` (lamports) - backend calculates from provider pricing
+| Area | Current behavior |
+| --- | --- |
+| IDL generation | working |
+| test harness | off-chain Anchor integration tests |
+| current passing tests | `28` |
+| model registry role | optional on-chain catalog and pricing hint source |
+| charging path | supports both direct user-signature and delegated backend-signature usage |
 
----
+## Read This With
 
-## 2. Fee Flow & Economics
-
-### 2.1 Fee Structure
-
-**Total Cost Calculation**:
-```
-base_cost = provider's actual cost (from backend)
-markup_amount = base_cost × markup_bps / 10000
-cost_after_markup = base_cost + markup_amount
-platform_fee = cost_after_markup × platform_fee_bps / 10000
-total_charged = cost_after_markup + platform_fee
-```
-
-**Example** (base_cost = 1000 lamports, markup = 5%, platform_fee = 5%):
-```
-markup_amount = 1000 × 500 / 10000 = 50 lamports
-cost_after_markup = 1000 + 50 = 1050 lamports
-platform_fee = 1050 × 500 / 10000 = 52.5 = 52 lamports (truncated)
-total_charged = 1050 + 52 = 1102 lamports
-```
-
-### 2.2 Fee Collection Timing
-
-**When fees are taken**: **During AI usage recording** (not at withdrawal)
-
-**Flow**:
-1. Backend calls `record_ai_usage()` or `record_ai_usage_with_delegation()`
-2. Contract calculates total_charged (base + markup + platform_fee)
-3. Contract checks vault balance >= total_charged
-4. Contract transfers platform_fee from vault PDA to fee_vault PDA
-5. Contract updates vault.balance -= total_charged
-6. Contract updates config.total_fees_collected += platform_fee
-7. Contract updates config.total_markup_collected += markup_amount
-
-**Fee Destination**:
-- `platform_fee_amount` → Fee Vault PDA (claimable by admin)
-- `markup_amount` → Stays in user's vault (backend's revenue, not extracted on-chain)
-- `base_cost` → Stays in user's vault (backend pays provider off-chain)
-
-**Rationale**: Markup and base cost stay in vault because backend handles off-chain settlement with AI providers. Only platform fee is extracted on-chain.
-
-### 2.3 Fee Configuration
-
-**Who can update fees**:
-- Only `PlatformConfig.authority` can update `platform_fee_bps` and `default_markup_bps`
-- Requires signature from authority
-- Protected by `has_one = authority` constraint
-
-**Fee Types**:
-- **Platform Fee**: Basis points (500 = 5%), max 2000 (20%)
-  - Applied to `cost_after_markup`
-  - Goes to platform (fee_vault)
-- **Markup**: Basis points (500 = 5%), max 5000 (50%)
-  - Applied to `base_cost`
-  - Backend's revenue margin
-  - Can be overridden per-usage (optional parameter)
-
-**Per-Model Fees**: Not currently implemented
-- Future: `ModelRegistry.custom_contract` can point to custom pricing logic
-- Would require CPI to custom contract for fee calculation
-
-### 2.4 Fee Claiming
-
-**Who can claim**: Only `PlatformConfig.authority`
-
-**Process**:
-1. Admin calls `claim_fees(amount)`
-2. Contract verifies `authority` signature
-3. Contract checks `fee_vault.lamports() >= amount`
-4. Contract transfers from fee_vault PDA to authority wallet
-5. Uses `fee_vault_bump` for PDA signing
-
-**No automatic distribution**: Admin manually claims fees (no split to model owners currently)
-
----
-
-## 3. Delegation Security Model
-
-### 3.1 Delegation Scope
-
-**What delegated signer can do**:
--  Call `record_ai_usage_with_delegation()` to charge user's vault
-- Not allowed:  Cannot deposit to vault
-- Not allowed:  Cannot withdraw from vault
-- Not allowed:  Cannot revoke delegation
-- Not allowed:  Cannot create new delegations
-- Not allowed:  Cannot update config
-
-**Scope Limitations**:
-- **Per-user**: Delegation is tied to specific user's vault
-- **Not per-model**: Delegate can use any model (no model restriction)
-- **Not per-vault**: Delegate can only access the vault of the user who delegated
-- **Not global**: Each user creates their own delegations independently
-
-### 3.2 Expiry & Limits
-
-**Expiry**:
-- User sets `expiry_duration` when creating delegation (seconds)
-- Min: 60 seconds (1 minute)
-- Max: 2,592,000 seconds (30 days)
-- Checked on every `record_ai_usage_with_delegation()` call
-- `require!(!delegated_signer.is_expired(current_time))`
-
-**Spending Limit**:
-- User sets `spending_limit` when creating delegation (lamports)
-- Max: 1,000,000,000,000 lamports (1000 SOL)
-- Cumulative across all usage
-- Checked before each charge: `require!(delegated_signer.can_spend(total_charged))`
-- Updated after charge: `delegated_signer.spent_amount += total_charged`
-
-### 3.3 Revocation
-
-**Who can revoke**: Only `owner` (user who created delegation)
-
-**Process**:
-1. User calls `revoke_delegated_signer()`
-2. Contract verifies `owner` signature
-3. Contract sets `delegated_signer.is_active = false`
-4. Revocation is **instant** (no grace period)
-
-**Race Condition Handling**:
-- Revocation is instant, but in-flight transactions may still succeed
-- Edge case: Backend submits usage → User revokes → Usage tx lands first
-- Mitigation: Backend should check delegation status before submitting
-- No on-chain protection for this race (inherent to blockchain finality)
-
-### 3.4 Verification on Usage
-
-**Checks performed in `record_ai_usage_with_delegation()`**:
-1.  `delegated_signer.is_active` must be true
-2.  `delegated_signer.is_expired(current_time)` must be false
-3.  `delegated_signer.can_spend(total_charged)` must be true
-4.  `delegated_signer.delegated_pubkey == delegate.key()` (PDA seed constraint)
-5.  `vault.owner == delegated_signer.owner` (PDA seed constraint)
-6.  `delegate` must sign the transaction
-
-**No additional verification**: Delegation is sufficient authority (user pre-approved)
-
----
-
-## 4. Vault Semantics
-
-### 4.1 Vault Ownership
-
-**Type**: **User Vault** (not platform vault, not model-specific)
-
-**Ownership**:
-- Each user has exactly 1 vault (PDA derived from user's pubkey)
-- Vault is owned by the user who created it
-- User has full control over deposits and withdrawals
-
-**Not a Platform Vault**:
-- Platform fees go to separate `fee_vault` PDA
-- User vaults are independent prepaid balances
-
-**Not Model-Specific**:
-- Single vault per user for all AI usage
-- No separate vaults per model
-
-### 4.2 Withdrawal Rules
-
-**Who can withdraw**: Only `vault.owner`
-
-**Constraints**:
-1.  Must be vault owner (signature required)
-2.  Must have sufficient balance: `vault.balance >= amount`
-3.  Must maintain rent-exempt minimum: `vault_lamports - amount >= rent_minimum`
-4.  Amount must be > 0
-
-**Rent Protection**:
-```rust
-let vault_lamports = ctx.accounts.vault.to_account_info().lamports();
-let min_balance = rent.minimum_balance(Vault::LEN);
-require!(vault_lamports - amount >= min_balance);
-```
-
-**Partial vs Full Withdrawal**:
--  Partial withdrawal: Allowed (as long as rent-exempt minimum remains)
-- Not allowed:  Full close: Not supported (would require closing account, not implemented)
-
-### 4.3 Fee Deduction Source
-
-**Where fees come from**: User's vault
-
-**Flow during AI usage**:
-1. Total charge calculated: `base_cost + markup + platform_fee`
-2. Platform fee transferred: `vault PDA → fee_vault PDA`
-3. Vault balance updated: `vault.balance -= total_charged`
-4. Vault usage tracked: `vault.total_ai_usage += total_charged`
-
-**Not from external source**: All costs deducted from user's prepaid vault balance
-
----
-
-## 5. AI Usage Accounting
-
-### 5.1 Usage Units
-
-**Primary Unit**: `tokens_used` (u64)
-- For token-based models (GPT, Claude, etc.)
-- Backend calculates from provider's token count
-
-**Secondary Unit**: `usage_type` (String)
-- "text", "image", "audio", "video"
-- For non-token usage (e.g., image generation = 1 request)
-
-**Cost Unit**: `base_cost` (lamports)
-- Backend converts provider's USD pricing to lamports
-- Backend's responsibility to calculate accurate cost
-
-### 5.2 Recording Authority
-
-**Who can record usage**:
-1. **User directly**: Calls `record_ai_usage()` with their signature
-   - Use case: User-initiated API calls
-   - User pays gas fees
-2. **Backend with delegation**: Calls `record_ai_usage_with_delegation()` with delegate signature
-   - Use case: Backend auto-records usage (user pre-approved)
-   - Backend pays gas fees
-   - Requires active, non-expired delegation with sufficient spending limit
-
-**Backend Authority**: `PlatformConfig.backend_authority` is informational only
-- Not enforced in current implementation
-- Future: Could add `require!(delegate == config.backend_authority)` for stricter control
-
-### 5.3 Source of Truth
-
-**On-chain record is source of truth**: YES
-
-**Rationale**:
-- Each usage creates immutable `AiUsageRecord` account
-- Includes all cost breakdown (base, markup, platform fee)
-- Timestamped and signed
-- Cannot be modified after creation
-- Provides full audit trail
-
-**Off-chain role**:
-- Backend calculates `base_cost` from provider pricing
-- Backend submits transaction to record usage
-- Backend is trusted to provide accurate `base_cost` and `tokens_used`
-
-**Trust Model**: Backend is trusted oracle for provider costs
-- No on-chain verification of provider pricing
-- Platform admin controls `backend_authority` (can change if backend misbehaves)
-- Users can audit usage records and compare to provider's billing
-
-### 5.4 Duplicate Prevention
-
-**Mechanism**: PDA seed includes timestamp
-
-**PDA Seeds**: `["ai_usage", vault.key(), timestamp.to_le_bytes()]`
-
-**Protection**:
-- Same vault + same timestamp = same PDA address
-- Anchor's `init` constraint prevents duplicate account creation
-- If duplicate attempted: Transaction fails with "account already initialized"
-
-**Limitation**:
-- Only prevents duplicates within same second
-- Backend could submit multiple usage records in different seconds
-- Mitigation: Backend's responsibility to deduplicate (off-chain)
-- Future: Could add nonce or sequence number to seed
-
-**Edge Case**: Clock manipulation
-- Solana clock is consensus-based (hard to manipulate)
-- If clock goes backwards: Could create duplicate PDA (unlikely)
-- Not a practical concern for production
-
----
-
-## 6. Security Considerations
-
-### 6.1 Arithmetic Safety
-
-**All math uses checked operations**:
-- `checked_add()`, `checked_sub()`, `checked_mul()`, `checked_div()`
-- Panics on overflow/underflow (transaction fails)
-- No silent wrapping
-
-**Examples**:
-```rust
-vault.balance = vault.balance.checked_sub(amount).unwrap();
-config.total_fees_collected = config.total_fees_collected.checked_add(platform_fee).unwrap();
-```
-
-### 6.2 Authority Verification
-
-**PDA Constraints**:
-- All PDAs use `seeds` and `bump` constraints
-- Prevents account substitution attacks
-
-**Ownership Checks**:
-- `has_one = owner` for vault operations
-- `has_one = authority` for config updates
-- `constraint = vault.owner == delegated_signer.owner` for delegation
-
-### 6.3 Reentrancy Protection
-
-**Not vulnerable**: Solana's account model prevents reentrancy
-- Accounts locked during transaction
-- No callbacks or hooks
-
-### 6.4 Pause Mechanism
-
-**Emergency Stop**:
-- `PlatformConfig.is_paused` flag
-- Checked in `record_ai_usage()` and `record_ai_usage_with_delegation()`
-- `require!(!config.is_paused)`
-- Only admin can toggle
-
-**Does not affect**:
-- Vault deposits/withdrawals (users can still access funds)
-- Delegation creation/revocation
-- Fee claiming
-
-### 6.5 Rent Exemption
-
-**Protected**:
-- Vault withdrawals check rent-exempt minimum
-- Fee vault is rent-exempt (PDA)
-- All accounts initialized with sufficient space
-
-### 6.6 Model Registry Optional
-
-**Security Benefit**:
-- If model registry provided: Validates `is_active` flag
-- If model registry not provided: Usage still works (flexible)
-- Prevents lock-in to registry (can use unregistered models)
-
-**Trade-off**:
-- Less control over which models can be used
-- Backend trusted to use legitimate models
-
----
-
-## 7. Future Enhancements
-
-### 7.1 Custom Model Contracts
-
-**Design**: `ModelRegistry.custom_contract` field
-- Points to custom program for model-specific logic
-- Could implement: custom pricing, access control, royalty splits
-- Requires CPI from main contract
-
-### 7.2 Model Owner Revenue Split
-
-**Current**: All fees go to platform
-**Future**: Split platform fee with model owners
-- Requires: Model owner field in ModelRegistry
-- Requires: Split percentage configuration
-- Requires: Separate claim functions per model owner
-
-### 7.3 Per-Model Delegation
-
-**Current**: Delegation applies to all models
-**Future**: Restrict delegation to specific models
-- Requires: `allowed_models: Vec<String>` in DelegatedSigner
-- Requires: Check in `record_ai_usage_with_delegation()`
-
-### 7.4 Usage Aggregation
-
-**Current**: One account per usage (expensive for high-frequency)
-**Future**: Aggregate usage in batches
-- Requires: Off-chain aggregation + periodic settlement
-- Requires: Merkle proof or signature verification
-
-### 7.5 Backend Authority Enforcement
-
-**Current**: `backend_authority` is informational
-**Future**: Enforce in delegation usage
-- Add: `require!(delegate == config.backend_authority)` in `record_ai_usage_with_delegation()`
-- Benefit: Stricter control over who can record usage
-
----
-
-## 8. Deployment Checklist
-
-### 8.1 Initial Configuration
-
-1. Deploy program to devnet/mainnet
-2. Call `initialize_config()` with:
-   - `platform_fee_bps`: 500 (5%)
-   - `default_markup_bps`: 500 (5%)
-   - `backend_authority`: Backend wallet pubkey
-3. Verify `fee_vault` PDA created
-4. Register initial models via `register_model()`
-
-### 8.2 Backend Setup
-
-1. Backend wallet funded with SOL for gas fees
-2. Backend stores private key securely
-3. Backend implements usage tracking and deduplication
-4. Backend calculates accurate `base_cost` from provider pricing
-5. Backend monitors delegation expirations
-
-### 8.3 User Onboarding
-
-1. User creates vault via `initialize_vault()`
-2. User deposits SOL via `deposit_to_vault()`
-3. User creates delegation via `create_delegated_signer()`:
-   - Set reasonable `expiry_duration` (e.g., 7 days)
-   - Set reasonable `spending_limit` (e.g., 0.1 SOL)
-4. Backend can now auto-record usage
-
-### 8.4 Monitoring
-
-1. Monitor `fee_vault` balance (platform revenue)
-2. Monitor `total_fees_collected` and `total_markup_collected`
-3. Monitor delegation expirations (notify users)
-4. Monitor vault balances (notify users of low balance)
-5. Audit usage records for anomalies
-
----
-
-## 9. FAQ
-
-**Q: Can a user have multiple vaults?**
-A: No, each user has exactly 1 vault (PDA derived from user pubkey).
-
-**Q: Can a user create multiple delegations?**
-A: Yes, to different delegate pubkeys. Each delegation is independent.
-
-**Q: What happens if delegation expires mid-transaction?**
-A: Transaction fails with `DelegatedSignerExpired` error.
-
-**Q: Can backend record usage without delegation?**
-A: No, backend must either have delegation or user must sign directly.
-
-**Q: Where does the markup go?**
-A: Markup stays in user's vault (backend's revenue, settled off-chain with provider).
-
-**Q: Can admin steal user funds?**
-A: No, admin can only claim platform fees from fee_vault, not user vaults.
-
-**Q: What if backend submits wrong base_cost?**
-A: Backend is trusted oracle. Users can audit records and compare to provider billing. Admin can change backend_authority if misbehavior detected.
-
-**Q: Can usage records be deleted?**
-A: No, they are immutable. Could add close instruction in future (with proper authorization).
-
-**Q: What if user's vault runs out of balance?**
-A: Transaction fails with `InsufficientVaultBalance`. Backend should check balance before submitting.
-
-**Q: Can delegation spending limit be increased?**
-A: No, must revoke and create new delegation. Could add update instruction in future.
-
----
-
-## 10. Summary
-
-**State Layout**: 6 account types (PlatformConfig, FeeVault, ModelRegistry, Vault, DelegatedSigner, AiUsageRecord)
-
-**Fee Flow**: Collected during usage recording, platform fee to fee_vault, markup stays in vault
-
-**Delegation**: Per-user, per-delegate, with expiry and spending limit, instant revocation
-
-**Vault**: User-owned prepaid balance, rent-protected withdrawals, single vault per user
-
-**Usage Accounting**: On-chain source of truth, token-based units, timestamp-based deduplication
-
-**Security**: Checked arithmetic, PDA constraints, pause mechanism, rent protection
+- [/contract/index](/contract/index)
+- [/contract/architecture](/contract/architecture)
+- [/contract/service-cost](/contract/service-cost)
+- [/contract/testing](/contract/testing)

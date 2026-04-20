@@ -142,8 +142,8 @@
             "pages": [
               "contract/architecture",
               "contract/architecture-spec",
-              "contract/contract-details",
-              "contract/critical-decisions"
+              "contract/service-cost",
+              "contract/contract-details"
             ]
           },
           {
@@ -159,9 +159,7 @@
             "expanded": false,
             "pages": [
               "contract/security",
-              "contract/threat-model",
-              "contract/critical-issues",
-              "contract/security-checklist"
+              "contract/threat-model"
             ]
           },
           {
@@ -175,8 +173,7 @@
             "group": "Deployment",
             "expanded": false,
             "pages": [
-              "contract/deployment",
-              "contract/docker"
+              "contract/deployment"
             ]
           },
           {

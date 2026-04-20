@@ -4,7 +4,7 @@ description: "Build, test, and deploy the Rabit Contract using the real Anchor a
 sidebarTitle: "Contract"
 ---
 
-This quickstart follows the actual contract repo workflow.
+This quickstart follows the actual contract repo workflow and matches the current repository layout.
 
 ## What you need
 
@@ -13,14 +13,14 @@ This quickstart follows the actual contract repo workflow.
 | Rust toolchain | compile the Solana program |
 | Solana CLI | local validator, wallet management, and deployment |
 | Anchor CLI | build, test, and deploy the program |
-| Node.js and npm | run TypeScript tests and project scripts |
+| Node.js and Yarn | run TypeScript tests and project scripts |
 | Docker (optional) | use the containerized development workflow |
 
 ## Main repo commands
 
 | Goal | Command |
 | --- | --- |
-| install JS dependencies | `npm install` |
+| install JS dependencies | `yarn install` |
 | build program | `anchor build` or `npm run build` |
 | run tests | `anchor test` or `npm run test` |
 | run tests without validator | `anchor test --skip-local-validator` or `npm run test:unit` |
@@ -39,8 +39,7 @@ flowchart LR
 ### 1. Install dependencies
 
 ```bash
-npm install
-cargo build
+yarn install
 ```
 
 ### 2. Build the program
@@ -49,16 +48,32 @@ cargo build
 anchor build
 ```
 
+If you want to regenerate the IDL directly from the program crate:
+
+```bash
+cd programs/rabit-contract
+anchor idl build -o ../../target/idl/rabit_contract.json
+anchor idl type ../../target/idl/rabit_contract.json -o ../../target/types/rabit_contract.ts
+```
+
 ### 3. Run the tests
 
 ```bash
 anchor test
 ```
 
+The current suite is an off-chain integration suite: it talks to a local validator, invokes real instructions, and validates account state transitions from TypeScript.
+
 ### 4. Deploy when ready
 
 ```bash
 anchor deploy --provider.cluster devnet
+```
+
+Before testing or deploying, make sure the global Solana config points to a real wallet path:
+
+```bash
+solana config get
 ```
 
 ## Docker path

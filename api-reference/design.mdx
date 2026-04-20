@@ -25,7 +25,8 @@ The endpoint groups map to runtime behaviors:
 - `Drift` for same-wallet execution flow
 - `Assets` for market-facing lookup and chart data
 - `Memory` for long-term semantic memory
-- `Models` for OpenRouter model and session-cost operations
+- `Models` for OpenRouter model catalog and model-side metadata
+- `Service Cost` for backend cost ledgers and settlement-ready summaries
 - `System` and `Streaming` for transport and service health
 
 This grouping is more useful than table-based grouping because the frontend interacts with product capabilities, not storage tables.
@@ -76,12 +77,24 @@ Response payloads try to balance:
 
 - human-readable integration behavior
 - strong typing through FastAPI/Pydantic models
-- frontend-friendly summaries for execution readiness and session cost
+- frontend-friendly summaries for execution readiness and settlement-ready service cost
 
 Examples:
 
 - `ExecutionAccessResponse` hides Backpack vs Drift authority differences behind one frontend-facing shape
-- `session_cost` gives one accumulated chat/session summary instead of forcing the client to recalculate per turn
+- `session_cost` gives one accumulated model-usage summary instead of forcing the client to recalculate per turn
+- `service_cost` gives one combined model-plus-monitoring summary that is easier to use for downstream charging or settlement
+
+## Cost design
+
+The backend cost story is intentionally split into two layers:
+
+| Layer | What it represents |
+| --- | --- |
+| model/session cost | LLM-facing usage and cost accumulation, usually from OpenRouter-backed work |
+| service cost | combined backend cost including model work plus monitoring or other service work |
+
+This means Rabit can keep cost attribution detailed while still exposing a cleaner top-level summary for product and contract-facing charging flows.
 
 ## Practical integration path
 
@@ -92,6 +105,7 @@ For most clients, the recommended order is:
 3. fetch execution-access state
 4. use Backpack or Drift execution flows as needed
 5. use assets and OHLC endpoints for market surfaces
+6. read service-cost endpoints when the client needs billing or settlement summaries
 
 ## Source of truth
 

@@ -20,7 +20,7 @@ The Rabit API is not just a CRUD backend. It combines:
 - agent chat and streaming workflows
 - exchange-aware execution flows
 - market data and chart data access
-- memory and model-management utilities
+- memory, model-management, and service-cost utilities
 
 In practice, the API is used by frontend and mobile clients to:
 
@@ -30,7 +30,7 @@ In practice, the API is used by frontend and mobile clients to:
 - manage Backpack execution access
 - prepare and submit Drift execution flows
 - fetch tracked asset and OHLC data
-- inspect model and session-cost state
+- inspect model metadata and service-cost state
 
 ## Endpoint groups
 
@@ -43,7 +43,8 @@ In practice, the API is used by frontend and mobile clients to:
 | Exchange Connections | Backpack credential storage and execution access state |
 | Drift | same-wallet execution wallet and prepare/submit flow |
 | Assets | asset lookup, trending, related assets, and OHLC data |
-| Models | OpenRouter model catalog and session-cost tracking |
+| Models | OpenRouter model catalog, provider metadata, and model-side pricing hints |
+| Service Cost | combined model cost, monitoring/service cost, and settlement-ready summaries |
 | Streaming | WebSocket price stream |
 
 ## How the backend is shaped
@@ -54,7 +55,7 @@ At a high level, the API sits in front of five runtime concerns:
 2. adaptive agent execution
 3. exchange-specific execution helpers
 4. market-data services
-5. storage-backed support services such as memory and model metadata
+5. storage-backed support services such as memory, model metadata, and cost ledgers
 
 That is why the API surface is grouped by behavior rather than by database table.
 
@@ -101,7 +102,8 @@ If you are integrating from a client app, start with:
 2. Agent
 3. Exchange Connections or Drift
 4. Assets
-5. Models if you need session-cost tracking
+5. Models if you need OpenRouter model metadata
+6. Service Cost if you need combined billing or settlement summaries
 
 ## API reference pages
 
@@ -125,7 +127,10 @@ If you are integrating from a client app, start with:
     Asset list, search, categories, summaries, related assets, and OHLC.
   </Card>
   <Card title="Models" icon="cpu" href="/api-reference/models">
-    OpenRouter model catalog and accumulated session cost.
+    OpenRouter model catalog, provider metadata, and pricing-facing model data.
+  </Card>
+  <Card title="Service Cost" icon="receipt" href="/api-reference/service-cost">
+    Combined model and monitoring cost summaries for settlement-aware product flows.
   </Card>
   <Card title="Memory" icon="brain" href="/api-reference/memory">
     Mem0 health, search, list, create, and delete.

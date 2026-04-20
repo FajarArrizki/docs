@@ -158,8 +158,11 @@ Revoke delegated signer.
 Record AI usage (user signs).
 
 **Parameters:**
-- `base_cost: u64` - Base cost in lamports
+- `model_id: String` - Model identifier
+- `base_cost: u64` - Model cost in lamports
+- `service_cost: u64` - Extra backend service cost in lamports
 - `usage_type: String` - Type: "text", "image", "audio", "video"
+- `tokens_used: u64` - Token count for registry stats and optional pricing checks
 - `markup_bps: Option<u16>` - Optional markup override
 
 **Accounts:**
@@ -183,8 +186,11 @@ Record AI usage (user signs).
 Record AI usage (backend signs).
 
 **Parameters:**
-- `base_cost: u64` - Base cost in lamports
+- `model_id: String` - Model identifier
+- `base_cost: u64` - Model cost in lamports
+- `service_cost: u64` - Extra backend service cost in lamports
 - `usage_type: String` - Type: "text", "image", "audio", "video"
+- `tokens_used: u64` - Token count for registry stats and optional pricing checks
 - `markup_bps: Option<u16>` - Optional markup override
 
 **Accounts:**
@@ -217,7 +223,8 @@ Emitted when AI usage is recorded.
 - `vault: Pubkey` - Vault account
 - `delegated_signer: Option<Pubkey>` - Delegation used
 - `usage_type: String` - Usage type
-- `base_cost: u64` - Base cost
+- `base_cost: u64` - Model cost
+- `service_cost: u64` - Extra backend service cost
 - `markup_bps: u16` - Markup percentage
 - `markup_amount: u64` - Markup amount
 - `platform_fee_bps: u16` - Platform fee percentage

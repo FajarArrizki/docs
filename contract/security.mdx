@@ -1,98 +1,68 @@
 ---
 title: "Contract Security"
-description: "Implemented protections, best practices, and operational security notes for the Rabit Contract."
+description: "A lightweight explanation of how the Rabit Contract keeps charging bounded, explicit, and separated by role."
 ---
 
-The Rabit contract is designed around a narrow authority model: users control funding, delegated signers control bounded charging, and admins control configuration and fee collection. The goal is to make every charge auditable and every privileged action explicit.
+Rabit does not try to make the backend all-powerful. The security model is built around narrow roles and explicit limits.
 
-## Security Overview
+## The simple model
 
 ```mermaid
 flowchart TD
-    A[User authority] --> A1[Fund and withdraw from vault]
-    A --> A2[Create or revoke delegations]
+    A[User] --> A1[deposit and withdraw from vault]
+    A --> A2[create and revoke delegation]
 
-    B[Backend delegate] --> B1[Record usage only when delegation is active]
+    B[Backend delegate] --> B1[record usage only within delegated limits]
 
-    C[Admin authority] --> C1[Update fee policy]
-    C --> C2[Pause usage]
-    C --> C3[Claim fee vault]
+    C[Admin] --> C1[update fee policy]
+    C --> C2[pause usage]
+    C --> C3[claim fee vault]
 ```
 
-## Implemented Controls
+That means:
 
-| Control | What it protects | Implementation pattern |
-| --- | --- | --- |
-| Checked arithmetic | Overflow and underflow on balances and fees | `checked_add`, `checked_sub`, `checked_mul`, `checked_div` |
-| Authority constraints | Unauthorized admin actions | `has_one = authority` and signer checks |
-| PDA validation | Account substitution and cross-user access | Seeds include owner and delegate public keys |
-| Rent-aware withdrawals | Draining accounts below rent minimum | Balance checks before transfer |
-| Delegation validation | Expired, revoked, or over-limit backend charges | Active flag, expiry check, spend limit check |
-| Fee caps | Configuration abuse | Hard max values for platform fee and markup |
-| Emergency pause | Continued charging during incidents | Pause flag checked on usage instructions |
-| Input validation | Invalid amounts and durations | Explicit bounds and zero-value rejection |
+- users control funding and delegation
+- the backend can charge only through the allowed usage path
+- the admin controls protocol policy, not direct user spending
 
-## Operational Mental Model
+## Main protections
 
-| Role | Allowed actions | Explicitly not allowed |
-| --- | --- | --- |
-| User | Fund vault, withdraw, create delegation, revoke delegation | Admin config changes and fee claims |
-| Backend delegate | Record usage through delegation | Withdraw, change fees, create new delegations |
-| Admin | Update fee policy, claim protocol fees, pause usage | Spend user vault funds directly |
-
-## Attack Surface Summary
-
-| Threat area | Current posture | Main mitigating factor |
-| --- | --- | --- |
-| Reentrancy | Not applicable | Solana account model and atomic instruction execution |
-| Front-running | Partially mitigated | Economic issue rather than a direct contract bug |
-| Timestamp manipulation | Low residual risk | Consensus clock and bounded delegation checks |
-| Sybil behavior | Mitigated | Vaults and delegations are tied to specific public keys |
-| Denial of service | Mitigated | No unbounded loops and pause control available |
-| Privilege escalation | Mitigated | Signer checks, PDA seeds, and explicit authority separation |
-
-## Operational Best Practices
-
-### For Users
-
-| Area | Recommended behavior |
+| Protection | What it does |
 | --- | --- |
-| Delegations | Keep expiry short and spend limits narrow. |
-| Vault funding | Deposit only what is needed for expected usage. |
-| Recovery | Revoke delegation immediately if a backend session looks suspicious. |
-| Fee awareness | Monitor paid fees and verify contract parameters before heavy use. |
+| PDA derivation | prevents account substitution across users and delegates |
+| signer checks | prevents unauthorized admin and owner actions |
+| delegation expiry | prevents old backend permissions from lasting forever |
+| spending limit | caps how much delegated charging can happen |
+| pause flag | lets the protocol stop new usage recording during incidents |
+| fee and markup caps | prevents extreme fee configuration |
+| immutable usage records | makes every accepted charge explainable afterward |
 
-### For Admins
+## What the contract protects well
 
-| Area | Recommended behavior |
+| Question | Current answer |
 | --- | --- |
-| Authority custody | Use a hardware wallet and prefer multisig on mainnet. |
-| Fee governance | Announce changes in advance and keep fee ranges predictable. |
-| Incident response | Maintain a pause runbook and monitor abnormal usage patterns. |
-| External review | Perform audit and load testing before production launch. |
+| Can someone withdraw from another user's vault? | no, owner checks and PDA derivation prevent that |
+| Can the backend charge forever once delegated? | no, delegation expires and can be revoked |
+| Can delegated charging exceed its configured budget? | no, spent amount and limit are checked on each charge |
+| Can the admin directly withdraw user vault balances? | no, the admin can only claim the separate fee vault |
 
-## Audit and Disclosure
+## What still requires trust
 
-| Topic | Recommendation |
+The contract narrows trust, but it does not eliminate it.
+
+| Residual trust | Why it exists |
 | --- | --- |
-| Formal audit | Engage Solana-focused security reviewers before mainnet. |
-| Stress testing | Simulate heavy usage and fee-claim traffic. |
-| Economic review | Check fee assumptions and backend trust boundaries. |
-| Responsible disclosure | Route issues to `security@rabit.ai` instead of public issue trackers. |
+| backend-reported cost inputs | the backend still reports `base_cost` and `service_cost` |
+| admin governance | the admin still controls fee policy and pause behavior |
+| user delegation choice | a user can still choose a backend they should not have trusted |
 
-## Security Checklist
+## Practical takeaway
 
-| Item | Status |
-| --- | --- |
-| Arithmetic overflow protection | Implemented |
-| Authority validation | Implemented |
-| PDA validation | Implemented |
-| Rent-exempt protection | Implemented |
-| Delegated signer security | Implemented |
-| Fee limits | Implemented |
-| Emergency pause | Implemented |
-| Balance validation | Implemented |
-| Input validation | Implemented |
-| Account ownership verification | Implemented |
-| External security audit | Pending |
-| Bug bounty program | Pending |
+The simplest security explanation is:
+
+1. user funds are prepaid into a vault
+2. backend charging is bounded by user-created delegation
+3. fee extraction is separated from user balances
+4. every successful charge leaves an immutable receipt
+
+So the contract is useful because it turns backend automation into something bounded, explicit, and auditable rather than informal and invisible.

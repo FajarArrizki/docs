@@ -10,9 +10,9 @@ This page explains the contract at the instruction and account level. It complem
 | Field | Value |
 | --- | --- |
 | Program name | Rabit Contract |
-| Program id | `Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS` |
+| Program id | `C4tLzpTr3CQ78rPXv9oWURdayWa1t5kBsKSn5UyMJfVh` |
 | Target network | Solana |
-| Framework | Anchor 0.30+ |
+| Framework | Anchor 0.32+ / CLI 1.0 |
 | Primary language | Rust 1.93.1+ |
 | Main responsibility | Pay-as-you-go AI spending with user vaults and delegated charging |
 
@@ -83,7 +83,7 @@ flowchart TD
 #### 1.4 Emergency Controls
 **Instruction**: `toggle_pause`
 - **Purpose**: Emergency stop for AI usage
-- **Effect**: Blocks record_ai_usage calls
+- **Effect**: Blocks both AI usage recording paths
 - **Does NOT affect**: Vault deposits/withdrawals, delegations
 - **Authority**: Admin only
 - **Event**: PlatformPauseToggled
@@ -189,17 +189,19 @@ flowchart TD
 - **Purpose**: Record AI usage with user signature
 - **Parameters**:
   - `model_id: String` - Model identifier
-  - `base_cost: u64` - Provider cost (lamports)
+  - `base_cost: u64` - Model/provider cost (lamports)
+  - `service_cost: u64` - Monitoring or backend service cost (lamports)
   - `usage_type: String` - "text", "image", "audio", "video"
   - `tokens_used: u64` - Token count
   - `markup_bps: Option<u16>` - Override markup (or use default)
 - **Process**:
-  1. Calculate total cost (base + markup + platform fee)
-  2. Check vault balance
-  3. Transfer platform fee to fee_vault
-  4. Update vault balance
-  5. Create immutable usage record
-  6. Update model stats (if registry provided)
+  1. Combine `base_cost + service_cost`
+  2. Calculate total cost (combined cost + markup + platform fee)
+  3. Check vault balance
+  4. Transfer platform fee to fee_vault
+  5. Update vault balance
+  6. Create immutable usage record
+  7. Update model stats (if registry provided)
 - **Authority**: User (vault owner)
 - **Event**: AiUsageRecorded
 
@@ -222,9 +224,9 @@ flowchart TD
 ### Fee Calculation Formula
 
 ```
-base_cost = Provider's actual cost (from backend)
-markup_amount = base_cost × markup_bps / 10000
-cost_after_markup = base_cost + markup_amount
+chargeable_cost = base_cost + service_cost
+markup_amount = chargeable_cost × markup_bps / 10000
+cost_after_markup = chargeable_cost + markup_amount
 platform_fee = cost_after_markup × platform_fee_bps / 10000
 total_charged = cost_after_markup + platform_fee
 ```
@@ -233,22 +235,25 @@ total_charged = cost_after_markup + platform_fee
 
 **Input**:
 - base_cost = 1000 lamports
+- service_cost = 200 lamports
 - markup_bps = 500 (5%)
 - platform_fee_bps = 500 (5%)
 
 **Calculation**:
 ```
-markup_amount = 1000 × 500 / 10000 = 50 lamports
-cost_after_markup = 1000 + 50 = 1050 lamports
-platform_fee = 1050 × 500 / 10000 = 52.5 = 52 lamports (truncated)
-total_charged = 1050 + 52 = 1102 lamports
+chargeable_cost = 1000 + 200 = 1200 lamports
+markup_amount = 1200 × 500 / 10000 = 60 lamports
+cost_after_markup = 1200 + 60 = 1260 lamports
+platform_fee = 1260 × 500 / 10000 = 63 lamports
+total_charged = 1260 + 63 = 1323 lamports
 ```
 
 **Breakdown**:
-- User pays: 1102 lamports (from vault)
-- Base cost: 1000 lamports (backend pays provider off-chain)
-- Markup: 50 lamports (backend's revenue)
-- Platform fee: 52 lamports (extracted to fee_vault)
+- User pays: 1323 lamports (from vault)
+- Model cost: 1000 lamports
+- Service cost: 200 lamports
+- Markup: 60 lamports (backend's revenue)
+- Platform fee: 63 lamports (extracted to fee_vault)
 
 ### Fee Limits
 
@@ -301,7 +306,7 @@ total_charged = 1050 + 52 = 1102 lamports
 
 ### 4. Vault (Per User)
 **PDA Seeds**: `["vault", owner.key()]`
-**Size**: 81 bytes
+**Size**: 89 bytes
 **Fields**:
 - owner: Pubkey
 - balance: u64
@@ -309,6 +314,7 @@ total_charged = 1050 + 52 = 1102 lamports
 - total_withdrawn: u64
 - total_ai_usage: u64
 - created_at: i64
+- usage_sequence: u64
 - bump: u8
 
 ### 5. DelegatedSigner (Per User-Delegate Pair)

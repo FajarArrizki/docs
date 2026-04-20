@@ -751,7 +751,8 @@ pub system_program: Program<'info, System>
 
 **Parameters**:
 - `model_id: String` - Model identifier
-- `base_cost: u64` - Provider cost (lamports)
+- `base_cost: u64` - Model/provider cost (lamports)
+- `service_cost: u64` - Monitoring or backend service cost (lamports)
 - `usage_type: String` - "text", "image", "audio", "video"
 - `tokens_used: u64` - Token count
 - `markup_bps: Option<u16>` - Override markup (or use default)
@@ -769,8 +770,9 @@ pub system_program: Program<'info, System>
 ```rust
 // Calculate fees
 markup = markup_bps.unwrap_or(config.default_markup_bps)
-markup_amount = base_cost * markup / 10000
-cost_after_markup = base_cost + markup_amount
+chargeable_cost = base_cost + service_cost
+markup_amount = chargeable_cost * markup / 10000
+cost_after_markup = chargeable_cost + markup_amount
 platform_fee = cost_after_markup * config.platform_fee_bps / 10000
 total_charged = cost_after_markup + platform_fee
 
@@ -792,6 +794,7 @@ usage_record.model_id = model_id
 usage_record.usage_type = usage_type
 usage_record.tokens_used = tokens_used
 usage_record.base_cost = base_cost
+usage_record.service_cost = service_cost
 usage_record.markup_bps = markup
 usage_record.markup_amount = markup_amount
 usage_record.platform_fee_bps = config.platform_fee_bps
@@ -811,6 +814,7 @@ emit!(AiUsageRecorded {
     usage_type,
     tokens_used,
     base_cost,
+    service_cost,
     markup_bps: markup,
     markup_amount,
     platform_fee_bps: config.platform_fee_bps,
@@ -888,7 +892,8 @@ pub system_program: Program<'info, System>
 
 **Parameters**:
 - `model_id: String` - Model identifier
-- `base_cost: u64` - Provider cost (lamports)
+- `base_cost: u64` - Model/provider cost (lamports)
+- `service_cost: u64` - Monitoring or backend service cost (lamports)
 - `usage_type: String` - "text", "image", "audio", "video"
 - `tokens_used: u64` - Token count
 - `markup_bps: Option<u16>` - Override markup (or use default)
