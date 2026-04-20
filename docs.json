@@ -71,6 +71,15 @@
             ]
           },
           {
+            "group": "Service Cost",
+            "expanded": false,
+            "pages": [
+              "agents/service-cost/index",
+              "agents/service-cost/model",
+              "agents/service-cost/service-cost"
+            ]
+          },
+          {
             "group": "Integrations",
             "expanded": false,
             "pages": [
@@ -104,6 +113,15 @@
               "tools/decision-support",
               "tools/memory",
               "tools/ui-streaming"
+            ]
+          },
+          {
+            "group": "Monitoring",
+            "expanded": false,
+            "pages": [
+              "monitoring/index",
+              "monitoring/price",
+              "monitoring/news"
             ]
           },
           {
@@ -201,6 +219,7 @@
             "pages": [
               "api-reference/auth",
               "api-reference/agent",
+              "api-reference/streaming",
               "api-reference/exchange-connections",
               "api-reference/drift"
             ]

@@ -25,7 +25,7 @@ It answers four questions:
 | Market | `start_news_monitoring` | starts background news monitoring | news monitoring runtime | structured failure if monitor cannot start |
 | Market | `stop_news_monitoring` | stops background news monitoring | news monitoring runtime | structured failure if stop fails |
 | Market | `get_monitoring_status` | returns monitor status and sentiment stats | news monitoring runtime state | structured failure |
-| Market | `add_price_alert` | stores validation/invalidation alert | price monitor runtime | structured validation error or runtime error |
+| Market | `add_price_alert` | stores validation/invalidation alert, starts monitoring-cost tracking, and returns preview automation prompts | price monitor runtime + monitoring cost ledger | structured validation error or runtime error |
 | Market | `remove_price_alert` | removes one alert | price monitor runtime | structured not-found error |
 | Market | `list_price_alerts` | lists alerts and trigger status | price monitor runtime | structured runtime error |
 | Market | `get_price_alert` | reads a single alert | price monitor runtime | structured not-found error |
@@ -82,6 +82,61 @@ It answers four questions:
 | UI streaming | `show_thinking_summary` | emits concise progress update | runtime event emitter | raises validation error or returns `streamed: false` when no emitter exists |
 | UI streaming | `show_plan` | emits structured plan | runtime event emitter | raises JSON or schema validation error |
 | UI streaming | `show_hint` | emits HITL branch selection prompt | runtime event emitter | raises JSON or schema validation error |
+
+## Pipeline-node coverage map
+
+The tool surface is now also reflected in the composable agent pipeline.
+
+| Pipeline node | Main tool family | Primary tools or behavior |
+| --- | --- | --- |
+| `chart_analysis` | TradingView | analysis mode: `tv_get_state`, `tv_set_symbol`, `tv_set_timeframe`, `tv_add_indicator`, `tv_get_indicator_values`, `tv_get_quote`, `tv_capture_screenshot`; write mode: `tv_get_state`, `tv_set_symbol`, `tv_set_timeframe`, `tv_clear_drawings`, `tv_draw_horizontal_line`, `tv_draw_line`, `tv_capture_screenshot` |
+| `market_snapshot` | Market | `get_price`, `search_news_by_symbols` |
+| `research_snapshot` | Market | `search_news_by_symbols`, `get_trending_news`, `web_search` |
+| `portfolio_snapshot` | Execution | portfolio and balance reads from Backpack or Drift |
+| `execution_snapshot` | Execution | execution readiness plus open-order and account-context reads |
+| `memory_snapshot` | Memory | `get_user_memory` and durable user-context recall |
+| `risk_review` | no direct external tools | turns prior node observations into explicit downside, invalidation, and caution flags |
+| `general_fallback` | UI streaming | safe UI-only tools when routing confidence is low |
+| `clarification_prep` | UI streaming | `show_hint` only during clarification turns |
+| `response_composer` | no direct external tools | synthesizes trusted node observations into prioritized evidence, conflict flags, and final answer posture |
+
+## Node reliability layer
+
+The pipeline now also carries bounded orchestration policy around those tools.
+
+| Reliability layer | What it does |
+| --- | --- |
+| dependency-aware planning | avoids planning or executing nodes that do not yet have the minimum context |
+| node preflight | skips nodes cleanly before tool calls when a dependency is missing |
+| bounded retry/backoff | retries transient degraded nodes once instead of escalating immediately |
+| artifact persistence | stores chart-write screenshot outputs per `scope_id` so the result can be referenced again later |
+| response composition | converts raw node output into a coherent answer contract before the final runtime response |
+
+## Monitoring-trigger automation
+
+Some market tools do more than return a point-in-time read.
+
+| Monitoring behavior | What Rabit now emits |
+| --- | --- |
+| price setup validation/invalidation hit | structured `price_alert_triggered` payload with `default_prompt` |
+| news monitoring update | news monitor event payloads and per-asset news snapshot surfaces |
+
+That means monitoring can now hand the client a "next message to send" instead of only a raw background state change.
+
+## What the pipeline adds beyond raw tools
+
+| Layer | Why it exists |
+| --- | --- |
+| tool family | defines what the backend can do |
+| pipeline node | defines when and why a bounded subset should run |
+| final runtime answer | turns those observations into one coherent response |
+
+That matters because Rabit no longer treats tool access as one flat surface. The same registry can be narrowed differently for:
+
+- chart-heavy requests
+- low-confidence fallback requests
+- clarification-first requests
+- research-heavy requests
 
 ## How Rabit handles tool failure
 

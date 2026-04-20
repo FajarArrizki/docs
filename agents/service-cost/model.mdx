@@ -1,120 +1,35 @@
 ---
-title: "Agent Platform"
-description: "How the Rabit backend turns an agent entrypoint plus routing pipeline into a mobile trading assistant with tools, streaming, and intent-aware behavior."
+title: "Model"
+description: "The OpenRouter-backed model catalog and model-only cost ledger behind Rabit's agent runtime."
 ---
 
-The Rabit backend is built around one adaptive entrypoint: `TradingAgent`.
+The model layer is still important, but it is no longer the whole billing story.
 
-That is still an intentional design choice.
+Rabit uses the OpenRouter model manager in the codebase:
 
-But the architecture around that runtime is now more structured than before.
+- `agents/openrouter/models.py`
+- `agents/openrouter/database.py`
+- `data/openrouter_models.json`
 
-Instead of treating the whole request as one opaque agent turn, Rabit now uses:
+## What the model layer is for
 
-- an agent entrypoint
-- an explicit intent router stage
-- a dispatch plan for a future specialist target
-- a composable pipeline-node plan for the current runtime
-- one stable runtime executor for the current production path
+| Concern | Why it matters |
+| --- | --- |
+| model catalog | the backend needs to know which models are available right now |
+| pricing metadata | model pricing drives `model_cost_usd` estimation |
+| capability metadata | tools, reasoning, and context length matter for product behavior |
+| local cache | the product should not depend on a fresh upstream call every time |
 
-So today the backend still executes through one runtime, but it does so with a pipeline that is already prepared for future specialist agents.
-
-## What the pipeline does now
-
-| Stage | What it does | Why it matters |
-| --- | --- | --- |
-| Entrypoint | receives request, auth-derived identity, context, and attachments | gives the mobile app one stable integration surface |
-| Intent router | classifies the request and computes a structured routing context | makes the runtime less generic and easier to evaluate |
-| Dispatch plan | selects the next planned specialist target | keeps the system multi-agent-ready without building premature specialists |
-| Pipeline node plan | selects composable pre-response steps such as chart analysis | lets Rabit add specialist behavior without hardcoding a second runtime |
-| Runtime execution | runs the current request through the active execution engine | preserves stability while the architecture evolves |
-| Completion and fallback | returns response, stream metadata, and safe degraded output when needed | makes failures easier to recover from |
-
-## What the entrypoint can do today
-
-Instead of building many separate runtime agents and then stitching them together, Rabit uses one main entry point that can:
-
-- understand intent
-- plan the next specialist path
-- decide which tool families matter
-- stream user-facing progress
-- adapt to context such as wallet identity, market focus, and execution readiness
-- fall back safely when routing or tool execution degrades
-
-## Why this matters
-
-This is the reason Rabit feels like a trading assistant instead of a search box or a static exchange dashboard.
-
-The backend agent is designed to help the user move through a flow like this:
-
-1. identify what matters
-2. understand why it matters
-3. decide whether action is available
-4. guide the next step in a structured way
-
-## What the agent can do today
-
-| Capability | What it means | Why it matters |
-| --- | --- | --- |
-| Intent routing | Rabit classifies the request before final response generation | the tool surface stays more relevant and efficient |
-| Dispatch planning | Rabit records the likely future specialist target for the request | future multi-agent rollout can happen without redesigning the API |
-| Pipeline nodes | Rabit can run specialist-like steps such as chart analysis before the final answer | the system becomes puzzle-like instead of branching into hardcoded runtimes |
-| Tool use | the agent can call market, execution, memory, and decision-support tools | responses are grounded in system state instead of pure text generation |
-| Research and news retrieval | the agent can use both generic web search and dedicated news tools through the same routed research surface | catalyst-sensitive answers can use tighter news retrieval instead of broad search only |
-| Streaming | the backend can stream assistant text and structured UI events | the frontend can render progressive guidance, not only final answers |
-| Multimodal inputs | the agent can ingest image and PDF uploads | users can provide richer context than plain text alone |
-| Context-aware behavior | the agent reacts to conversation style, trading style, market context, and execution gates | the same backend can behave differently depending on the active user flow |
-| Safe fallback | the backend returns controlled degraded responses instead of dumping raw backend errors | the product stays usable even when one path fails |
-| Service cost awareness | the backend exposes both model catalog state and combined service-cost state | clients can inspect available models plus `model_cost_usd`, `monitor_cost_usd`, and `total_cost_usd` |
-
-## Why streaming matters in Rabit
-
-In many products, “streaming” only means partial text.
-
-Rabit goes further. The agent can emit structured frontend events that let the UI react while the answer is being built.
-
-## UI-oriented agent events
-
-| Event | What it is | How the frontend can use it |
-| --- | --- | --- |
-| `thinking_summary` | a short, user-safe summary of what the agent is currently doing | show progress without exposing raw chain-of-thought |
-| `plan` | a structured sequence of steps the user can follow | render an action plan instead of a paragraph blob |
-| `hint` | a controlled branch prompt when the user needs to choose a path | support human-in-the-loop interaction cleanly |
-| `chart_screenshot` | a TradingView screenshot payload emitted during chart workflows | show or persist the chart image while the agent continues reasoning |
-| `assistant_delta` | streamed assistant text chunks | power the normal chat experience |
-| `done` | final completion signal with metadata | close the stream, persist state, and update the UI |
-
-## Why this is useful for a mobile product
-
-On mobile, users usually need:
-
-- shorter explanations
-- clearer next steps
-- less ambiguity
-- faster recognition of what changed
-
-That is exactly why Rabit uses streaming events such as `thinking_summary`, `plan`, and `hint`.
-
-## Service cost behind the agent
-
-The agent section is not only about routing and tools. The backend now also tracks a broader service-cost surface:
-
-- `model_cost_usd`
-- `monitor_cost_usd`
-- `total_cost_usd`
-
-The model side still comes from the OpenRouter catalog manager and is cached locally in `data/openrouter_models.json`.
-
-### Current local snapshot
+## Current local snapshot
 
 | Metric | Current value |
 | --- | --- |
 | total cached models | `342` |
 | largest provider group | `openai` with `61` models |
-| tool-capable provider leaders | `openai`, `qwen`, `google`, `anthropic`, `z-ai` |
-| reasoning-capable provider leaders | `openai`, `qwen`, `google`, `anthropic`, `z-ai` |
+| strong tool-capable groups | `openai`, `qwen`, `google`, `anthropic`, `z-ai` |
+| strong reasoning-capable groups | `openai`, `qwen`, `google`, `anthropic`, `z-ai` |
 
-### Model
+## Model
 
 | Model ID | Provider | Context length | Input ($/M) | Output ($/M) |
 | --- | --- | --- | --- | --- |
@@ -461,203 +376,33 @@ The model side still comes from the OpenRouter catalog manager and is cached loc
 | `z-ai/glm-5.1` | `z-ai` | 202,752 | 0.95 | 3.15 |
 | `z-ai/glm-5v-turbo` | `z-ai` | 202,752 | 1.2 | 4 |
 
-### How model and service cost data flow
+## How model cost works
 
 ```mermaid
 flowchart LR
-    A[OpenRouter catalog] --> B[OpenRouterModels fetch and parse]
-    B --> C[data/openrouter_models.json]
-    C --> D[/api/models]
-    E[OpenRouter session usage] --> F[model cost ledger]
-    G[price alert lifecycle] --> H[monitoring cost ledger]
-    F --> I[/api/service-costs/{scope_id}]
-    H --> I
-    D --> J[client model picker or model-aware surfaces]
-    I --> K[pay-as-you-go summary]
+    A[Intent router call] --> D[OpenRouter session cost ledger]
+    B[Main response call] --> D
+    C[Tool follow-up or compression call] --> D
+    D --> E[model_cost_usd]
+    D --> F[/api/openrouter/session-costs/{scope_id}]
 ```
 
-### What the backend tracks per model
+## Metadata the backend tracks
 
 | Field | Why it matters |
 | --- | --- |
-| `id` and `name` | identify the model cleanly in client and backend surfaces |
-| `provider` | lets the system group the catalog by vendor family |
-| `context_length` | helps the product understand prompt-window limits |
-| `input_price` and `output_price` | supports cost-aware selection and reporting |
-| `supports_tools` | matters for tool-calling compatibility |
-| `supports_reasoning` | matters for reasoning-oriented filtering and selection |
-| `enabled` | lets the backend disable one model without removing it from the catalog |
+| `id` and `name` | stable model identity for backend and client surfaces |
+| `provider` | vendor grouping |
+| `context_length` | prompt-window limits |
+| `input_price` and `output_price` | cost estimation |
+| `supports_tools` | tool-calling compatibility |
+| `supports_reasoning` | reasoning-capable filtering |
+| `enabled` | backend-side model availability control |
 
-They help the product feel actionable even on smaller screens and shorter attention windows.
+## Why this page matters
 
-For the dedicated breakdown, use the Agent sidebar pages under `Service Cost`.
+The model catalog explains `which models exist` and `how model pricing is estimated`.
 
-## How the agent fits into the system
+It does not explain monitoring cost.
 
-```mermaid
-flowchart TD
-    A[User request] --> B[Agent entrypoint]
-    B --> C[Intent routing]
-    C --> D[Dispatch planning]
-    D --> E[Dependency-aware node planning]
-    E --> F[Node preflight and tool filtering]
-    F --> G[Retry-aware graph executor]
-    G --> H[Node observations plus risk framing]
-    H --> I[Response composer synthesis]
-    I --> J[TradingAgent runtime execution]
-    J --> K[Assistant text]
-    J --> L[Structured UI events]
-    J --> M[Execution-aware guidance]
-    J --> N[Pipeline trace and fallback metadata]
-    G --> M[Session artifact store]
-```
-
-## First specialist-like nodes: chart analysis, market snapshot, research snapshot, portfolio snapshot, execution snapshot, memory snapshot, risk review, general fallback, clarification prep, and response composer
-
-The first real nodes in the composable pipeline are `chart_analysis`, `market_snapshot`, `research_snapshot`, `portfolio_snapshot`, `execution_snapshot`, `memory_snapshot`, `risk_review`, `general_fallback`, `clarification_prep`, and `response_composer`.
-
-`chart_analysis` is now one dual-mode node, not two separate runtimes:
-
-| Chart node mode | What it does | What it blocks |
-| --- | --- | --- |
-| `analysis` | reads chart state, aligns symbol/timeframe, adds indicators temporarily, reads quote and indicator values | drawing tools, alert tools, unrestricted chart mutation |
-| `write` | clears drawings when explicitly asked, marks horizontal levels, draws trend lines when enough coordinates exist, captures a post-write screenshot | alert tools, indicator-management tools, free-form chart mutation from the final model |
-
-Internally both modes still follow a bounded `Reason -> Act -> Critique -> Observe` loop, but the write path uses a stricter instruction layer and a narrower LLM-facing tool surface.
-
-That means Rabit can support chart mutation without pretending a second chart runtime already exists.
-
-`market_snapshot` complements that step with a smaller read-only enrichment pass:
-
-| It does | It avoids |
-| --- | --- |
-| resolve the active symbol from chart observations or market context | pretending to own the request as a separate runtime |
-| read live price with `get_price` | placing orders or mutating execution state |
-| fetch a short symbol-news tail with `search_news_by_symbols` | broad, noisy research when a compact snapshot is enough |
-| inject trusted market/news observations into the final prompt | claiming unsupported always-live awareness |
-
-The planner is now dependency-aware too.
-
-That means the graph no longer plans or executes every node just because the request mentions a broad tool group.
-
-Examples:
-
-| Planner rule | What it changes |
-| --- | --- |
-| no symbol can be resolved before a market snapshot | `market_snapshot` is not planned, or is skipped before tool calls |
-| no upstream observations exist for risk framing | `risk_review` is skipped instead of pretending it has context |
-| low-confidence route | the graph stays on `general_fallback -> response_composer` even if the raw text mentions charts or indicators |
-
-Nodes also now have bounded retry/backoff behavior where it helps:
-
-| Node family | Retry policy |
-| --- | --- |
-| data-fetching nodes such as `chart_analysis`, `market_snapshot`, `research_snapshot`, `portfolio_snapshot`, `execution_snapshot`, and `memory_snapshot` | can retry once with a short bounded backoff when the result looks transient |
-| semantic/control nodes such as `risk_review`, `general_fallback`, `clarification_prep`, and `response_composer` | do not retry because they are deterministic by design |
-
-That keeps the graph more resilient without turning it into an unbounded autonomous loop.
-
-`research_snapshot` handles research-like requests where the product needs a little more context than a compact market snapshot:
-
-| It does | It avoids |
-| --- | --- |
-| prefer symbol-specific news first when the request is asset-sensitive | pretending every research turn needs a separate runtime already |
-| fall back to trending-news context when no symbol is resolved | broad uncontrolled browsing |
-| add a small `web_search` layer for broader context | turning the pipeline into a full autonomous research loop |
-| inject trusted research observations into the final prompt | claiming unsupported live feed or search breadth |
-
-The remaining snapshot nodes fill the other specialist-target gaps:
-
-| Node | What it adds |
-| --- | --- |
-| `portfolio_snapshot` | balances, collateral, and positions before a portfolio-oriented answer |
-| `execution_snapshot` | execution policy state plus open-order context before an execution-oriented answer |
-| `memory_snapshot` | relevant durable memory recall before a memory-oriented answer |
-
-`risk_review` adds a different kind of value. It does not fetch new market data. Instead, it inspects the observations already gathered by earlier nodes and turns them into explicit downside framing:
-
-| It does | It avoids |
-| --- | --- |
-| check whether explicit invalidation or stop markers are present | pretending to know risk controls that were never observed |
-| flag fresh-news sensitivity and upstream degraded context | fetching another broad research round just to restate caution |
-| turn indicator extremes such as RSI overbought or oversold into risk flags | replacing the final model with a second free-form analyst |
-| inject a compact caution summary before the final answer | mutating execution or chart state |
-
-That framing is now richer than a plain caution flag. The node now also derives:
-
-- `invalidation_quality`
-- `confluence_strength`
-- `news_fragility`
-- `execution_readiness`
-- a normalized `risk_summary`
-
-The remaining non-snapshot nodes close the fallback and composition gaps:
-
-| Node | What it adds |
-| --- | --- |
-| `general_fallback` | a safer low-confidence execution mode before the final answer |
-| `clarification_prep` | structured clarification context and hint guidance before the final answer |
-| `response_composer` | a concrete final composition step that summarizes prior node observations |
-
-`response_composer` is no longer just a passthrough summary. It now adds:
-
-| Composition output | Why it matters |
-| --- | --- |
-| `primary_evidence_nodes` | tells the final runtime which node outputs deserve the most weight |
-| `supporting_nodes` | keeps secondary context visible without over-weighting it |
-| `conflict_flags` | makes disagreements or fragility explicit instead of burying them |
-| `recommended_posture` | nudges the final answer toward `direct`, `balanced`, `cautious`, `risk_first`, or fallback behavior |
-| resolved symbol/timeframe | keeps the final answer anchored to the actual asset context |
-| artifact count | lets the runtime know when chart-write artifacts exist for this turn |
-
-Those fallback-oriented nodes now also narrow the visible tool surface:
-
-| Node | Restriction |
-| --- | --- |
-| `general_fallback` | exposes only safe UI tools during low-confidence turns |
-| `clarification_prep` | exposes only `show_hint` during clarification turns |
-
-That low-confidence path is also planner-gated now. A raw mention of charts, RSI, or MACD no longer forces `chart_analysis` to run when routing confidence is low, and a low-confidence draw request does not unlock chart write mode either.
-
-Together, these nodes contribute their own instructions into the effective prompt for that turn. That means the final response is not only grounded by chart observations, but also shaped by behavior rules such as:
-
-- respect locked asset scope
-- only enter chart-write behavior when the planner explicitly enabled write mode
-- prefer indicator evidence only when it improves the answer
-- keep the workflow analytical rather than operational
-- use compact live price and recent headline context before escalating to broader research
-
-## How the chart node now behaves in practice
-
-```mermaid
-flowchart LR
-    A[Market-specialist path] --> B[chart_analysis]
-    B --> C{chart_mode}
-    C -->|analysis| D[Inspect state and indicators]
-    C -->|write| E[Apply controlled chart mutation]
-    D --> F[market_snapshot]
-    E --> G[Capture screenshot]
-    G --> H[Persist chart artifact]
-    H --> F
-    F --> I[risk_review when planned]
-    I --> J[response_composer synthesizes posture and conflicts]
-``` 
-
-The important boundary is that the final model does not directly receive the chart-writing tools during write mode. The node executes the chart mutation itself, then injects trusted observations and optional screenshot metadata into the broader market-specialist turn.
-
-That write path now also persists a session-scoped artifact when a `scope_id` exists.
-
-So a successful chart-write turn can now leave behind:
-
-- the chart mutation summary
-- the resulting screenshot URL
-- the node and scope that produced it
-
-This makes chart-write turns easier to reopen, inspect, or reference later from the frontend or from tooling.
-
-## What to read next
-
-- [Exchange Execution](../execution)
-- [Memory and Context](../memory)
-- [Agents](/agents)
-- [Agent API](/api-reference/agent)
+That is why Rabit now treats model cost as one part of a broader service-cost story.

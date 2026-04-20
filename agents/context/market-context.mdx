@@ -15,6 +15,7 @@ The backend supports context fields such as:
 - `source_screen`
 - `watchlist_symbols`
 - market-state hints like trend, volatility, and momentum
+- `news_context.tail_titles`
 
 ## Main Purpose
 
@@ -25,6 +26,34 @@ Examples:
 - if the user is in a locked asset screen, the agent should stay focused on that asset
 - if the user is in global mode, the agent can discuss broader opportunities
 - if the frontend already knows trend or volatility hints, the agent should treat them as starting context
+- if the frontend already has the latest 3 to 5 headlines for the active asset, it can pass those titles as `news_context.tail_titles`
+
+## Why the news tail matters
+
+Market context is not only price bias.
+
+It can also carry a compact headline tail so the agent has immediate awareness of the most recent catalyst context without waiting for a fresh search call.
+
+| Context field | Why it helps |
+| --- | --- |
+| `market_state.*` | gives structural market hints |
+| `news_context.tail_titles` | gives headline-level catalyst hints |
+
+This is especially useful when the frontend is already subscribed to the live news feed and wants the next chat turn to start with the same recent context the user just saw.
+
+## Recommended news-tail rule
+
+When the frontend builds `news_context.tail_titles`, it should prefer the most recently `detected_at` headlines instead of only sorting by the source `date`.
+
+That keeps the agent aligned with what the user just saw in Rabit's live feed:
+
+| Field | Why it matters for tail selection |
+| --- | --- |
+| `date` | tells you how old the article is at the source |
+| `detected_at` | tells you when the Rabit backend actually noticed it |
+| `timestamp` | tells you when the current snapshot or stream payload was emitted |
+| `freshness_seconds` | tells you how long ago Rabit detected the headline |
+| `is_new` | lets the frontend quickly badge a headline before building the tail |
 
 ## What Market Context Does Not Do
 

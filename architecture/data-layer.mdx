@@ -160,6 +160,7 @@ Rabit also uses temporary file storage for multimodal uploads.
 | Store | Purpose | Backend shape | Path or location |
 | --- | --- | --- | --- |
 | Upload directory | Temporary storage for uploaded image and PDF attachments | file storage | `AGENT_UPLOAD_DIR` |
+| Pipeline artifact store | Session-scoped chart-write and screenshot artifacts keyed by `scope_id` | JSON-backed storage | `AGENT_PIPELINE_ARTIFACTS_DB_PATH` |
 
 This is not a database in the classic sense, but it is part of the data layer because it persists user-provided artifacts long enough for agent processing.
 

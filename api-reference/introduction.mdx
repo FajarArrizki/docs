@@ -27,10 +27,22 @@ In practice, the API is used by frontend and mobile clients to:
 - authenticate users with Solana wallet signatures
 - send messages to the trading agent
 - stream assistant output and UI events
+- fetch persisted pipeline artifacts such as chart-write screenshots by `scope_id`
 - manage Backpack execution access
 - prepare and submit Drift execution flows
 - fetch tracked asset and OHLC data
+<<<<<<< HEAD
 - inspect model metadata and service-cost state
+=======
+- inspect model and service-cost state
+
+The agent surface also now carries more structured backend reasoning than before:
+
+- bounded node execution before the final answer
+- explicit risk framing
+- explicit response posture guidance
+- persisted chart-write artifacts per `scope_id`
+>>>>>>> b00c72694c26ea1bb339b9487e48b046d7802d53
 
 ## Endpoint groups
 
@@ -39,13 +51,34 @@ In practice, the API is used by frontend and mobile clients to:
 | System | service health and platform metadata |
 | Auth | wallet-based sign-in and current identity |
 | Agent | uploads, chat, and SSE chat |
+| Agent Artifacts | persisted per-scope pipeline artifacts such as chart-write screenshots |
 | Memory | Mem0-backed memory health and CRUD |
 | Exchange Connections | Backpack credential storage and execution access state |
 | Drift | same-wallet execution wallet and prepare/submit flow |
 | Assets | asset lookup, trending, related assets, and OHLC data |
+<<<<<<< HEAD
 | Models | OpenRouter model catalog, provider metadata, and model-side pricing hints |
 | Service Cost | combined model cost, monitoring/service cost, and settlement-ready summaries |
 | Streaming | WebSocket price stream |
+=======
+| News | asset-specific news snapshot plus live news WebSocket feed |
+| Models | OpenRouter model catalog surfaces |
+| Service Cost | combined model and monitoring cost tracking |
+| Streaming | SSE agent output plus WebSocket price and news transport |
+
+## What changed in the current backend generation
+
+The current generation of the backend API is more pipeline-aware than earlier versions.
+
+That means:
+
+- the agent entrypoint is still stable for clients
+- but the runtime behind it now uses dependency-aware node planning
+- risk review is now a first-class pre-response step
+- final answer composition now includes conflict detection and recommended posture
+
+So the API contract stayed simple while the runtime behavior got more structured.
+>>>>>>> b00c72694c26ea1bb339b9487e48b046d7802d53
 
 ## How the backend is shaped
 
@@ -102,8 +135,13 @@ If you are integrating from a client app, start with:
 2. Agent
 3. Exchange Connections or Drift
 4. Assets
+<<<<<<< HEAD
 5. Models if you need OpenRouter model metadata
 6. Service Cost if you need combined billing or settlement summaries
+=======
+5. Models if you need model catalog access
+6. Service Cost if you need pay-as-you-go cost tracking
+>>>>>>> b00c72694c26ea1bb339b9487e48b046d7802d53
 
 ## API reference pages
 
@@ -117,6 +155,9 @@ If you are integrating from a client app, start with:
   <Card title="Agent" icon="message-bot" href="/api-reference/agent">
     Uploads, chat, SSE streaming, intent metadata, and session cost.
   </Card>
+  <Card title="Streaming" icon="radio" href="/api-reference/streaming">
+    SSE agent output plus WebSocket price and news transport.
+  </Card>
   <Card title="Exchange Connections" icon="key" href="/api-reference/exchange-connections">
     Execution access state and Backpack credential management.
   </Card>
@@ -127,15 +168,19 @@ If you are integrating from a client app, start with:
     Asset list, search, categories, summaries, related assets, and OHLC.
   </Card>
   <Card title="Models" icon="cpu" href="/api-reference/models">
+<<<<<<< HEAD
     OpenRouter model catalog, provider metadata, and pricing-facing model data.
   </Card>
   <Card title="Service Cost" icon="receipt" href="/api-reference/service-cost">
     Combined model and monitoring cost summaries for settlement-aware product flows.
+=======
+    OpenRouter model catalog and capability metadata.
+  </Card>
+  <Card title="Service Cost" icon="wallet" href="/api-reference/agent">
+    Combined model and monitoring cost summaries for one scope.
+>>>>>>> b00c72694c26ea1bb339b9487e48b046d7802d53
   </Card>
   <Card title="Memory" icon="brain" href="/api-reference/memory">
     Mem0 health, search, list, create, and delete.
-  </Card>
-  <Card title="Streaming" icon="radio" href="/api-reference/streaming">
-    SSE and WebSocket transport behavior.
   </Card>
 </CardGroup>

@@ -237,7 +237,7 @@
     "/api/openrouter/session-costs/{scope_id}": {
       "get": {
         "tags": [
-          "Models"
+          "Service Cost"
         ],
         "summary": "Return accumulated OpenRouter session cost for one scope",
         "description": "Return one scope_id's accumulated OpenRouter usage and estimated cost.",
@@ -282,6 +282,136 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OpenRouterSessionCostResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/service-costs/{scope_id}": {
+      "get": {
+        "tags": [
+          "Service Cost"
+        ],
+        "summary": "Return combined model and monitoring service cost for one scope",
+        "description": "Return one scope_id's combined model and monitoring cost summary.",
+        "operationId": "get_service_cost_api_service_costs__scope_id__get",
+        "parameters": [
+          {
+            "name": "scope_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scope Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Optional explicit user ID when no bearer token is available",
+              "title": "User Id",
+              "nullable": true
+            },
+            "description": "Optional explicit user ID when no bearer token is available"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceCostSummaryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/artifacts/{scope_id}": {
+      "get": {
+        "tags": [
+          "Agent"
+        ],
+        "summary": "Return persisted pipeline artifacts for one scope",
+        "description": "Return persisted pipeline artifacts for one chat/session scope.",
+        "operationId": "get_agent_pipeline_artifacts_api_agent_artifacts__scope_id__get",
+        "parameters": [
+          {
+            "name": "scope_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scope Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Optional explicit user ID when no bearer token is available",
+              "title": "User Id",
+              "nullable": true
+            },
+            "description": "Optional explicit user ID when no bearer token is available"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Authorization",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPipelineArtifactListResponse"
                 }
               }
             }
@@ -1111,6 +1241,61 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RelatedAssetsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/news/assets/{symbol}": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Get latest news snapshot for one tracked asset",
+        "description": "Return a latest snapshot of asset-specific news using the existing news retrieval layer",
+        "operationId": "get_asset_news_api_news_assets__symbol__get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Symbol"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of asset news items to return",
+              "default": 5,
+              "title": "Limit"
+            },
+            "description": "Maximum number of asset news items to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetNewsResponse"
                 }
               }
             }
@@ -2206,8 +2391,18 @@
             "title": "Intent",
             "nullable": true
           },
+          "agent_pipeline": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Agent Pipeline",
+            "nullable": true
+          },
           "session_cost": {
             "$ref": "#/components/schemas/OpenRouterSessionCostResponse",
+            "nullable": true
+          },
+          "service_cost": {
+            "$ref": "#/components/schemas/ServiceCostSummaryResponse",
             "nullable": true
           }
         },
@@ -2283,6 +2478,9 @@
           },
           "market_state": {
             "$ref": "#/components/schemas/AgentMarketStateContext"
+          },
+          "news_context": {
+            "$ref": "#/components/schemas/AgentNewsContext"
           }
         },
         "type": "object",
@@ -2320,6 +2518,115 @@
         "type": "object",
         "title": "AgentMarketStateContext",
         "description": "Optional market-state hints supplied by the frontend."
+      },
+      "AgentNewsContext": {
+        "properties": {
+          "tail_titles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tail Titles"
+          }
+        },
+        "type": "object",
+        "title": "AgentNewsContext",
+        "description": "Optional news-headline hints supplied by the frontend."
+      },
+      "AgentPipelineArtifactListResponse": {
+        "properties": {
+          "scope_id": {
+            "type": "string",
+            "title": "Scope Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "nullable": true
+          },
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/AgentPipelineArtifactResponse"
+            },
+            "type": "array",
+            "title": "Artifacts"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope_id"
+        ],
+        "title": "AgentPipelineArtifactListResponse",
+        "description": "Persisted pipeline artifacts for one scope_id."
+      },
+      "AgentPipelineArtifactResponse": {
+        "properties": {
+          "artifact_id": {
+            "type": "string",
+            "title": "Artifact Id"
+          },
+          "scope_id": {
+            "type": "string",
+            "title": "Scope Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "nullable": true
+          },
+          "node_name": {
+            "type": "string",
+            "title": "Node Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "artifact_id",
+          "scope_id",
+          "node_name",
+          "kind",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "AgentPipelineArtifactResponse",
+        "description": "One persisted pipeline artifact for a chat/session scope."
       },
       "AgentUploadDeleteResponse": {
         "properties": {
@@ -2638,6 +2945,91 @@
         ],
         "title": "AssetListResponse",
         "description": "Response for GET /api/assets"
+      },
+      "AssetNewsItem": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet",
+            "nullable": true
+          },
+          "date": {
+            "type": "string",
+            "title": "Date",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "nullable": true
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "detected_at": {
+            "type": "string",
+            "title": "Detected At",
+            "nullable": true
+          },
+          "freshness_seconds": {
+            "type": "integer",
+            "title": "Freshness Seconds",
+            "nullable": true
+          },
+          "is_new": {
+            "type": "boolean",
+            "title": "Is New",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "url",
+          "symbol"
+        ],
+        "title": "AssetNewsItem",
+        "description": "One news item for a tracked asset."
+      },
+      "AssetNewsResponse": {
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "news": {
+            "items": {
+              "$ref": "#/components/schemas/AssetNewsItem"
+            },
+            "type": "array",
+            "title": "News"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "symbol",
+          "total"
+        ],
+        "title": "AssetNewsResponse",
+        "description": "Response for GET /api/news/assets/{symbol}."
       },
       "AssetSearchResponse": {
         "properties": {
@@ -3772,6 +4164,92 @@
         "title": "ModelsListResponse",
         "description": "Response for GET /api/models"
       },
+      "MonitoringCostSummaryResponse": {
+        "properties": {
+          "scope_id": {
+            "type": "string",
+            "title": "Scope Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "USD"
+          },
+          "alert_setup_cost_usd": {
+            "type": "number",
+            "title": "Alert Setup Cost Usd",
+            "default": 0.0
+          },
+          "trigger_cost_usd": {
+            "type": "number",
+            "title": "Trigger Cost Usd",
+            "default": 0.0
+          },
+          "monitoring_cost_usd": {
+            "type": "number",
+            "title": "Monitoring Cost Usd",
+            "default": 0.0
+          },
+          "total_cost_usd": {
+            "type": "number",
+            "title": "Total Cost Usd",
+            "default": 0.0
+          },
+          "alert_setup_count": {
+            "type": "integer",
+            "title": "Alert Setup Count",
+            "default": 0
+          },
+          "trigger_count": {
+            "type": "integer",
+            "title": "Trigger Count",
+            "default": 0
+          },
+          "active_alert_count": {
+            "type": "integer",
+            "title": "Active Alert Count",
+            "default": 0
+          },
+          "active_symbol_count": {
+            "type": "integer",
+            "title": "Active Symbol Count",
+            "default": 0
+          },
+          "active_symbols": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Active Symbols"
+          },
+          "total_symbol_hours": {
+            "type": "number",
+            "title": "Total Symbol Hours",
+            "default": 0.0
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope_id"
+        ],
+        "title": "MonitoringCostSummaryResponse",
+        "description": "Accumulated monitoring cost for one scope_id session."
+      },
       "OHLCData": {
         "properties": {
           "timestamp": {
@@ -3985,6 +4463,63 @@
         ],
         "title": "RelatedAssetsResponse",
         "description": "Response for GET /api/assets/{symbol}/related"
+      },
+      "ServiceCostSummaryResponse": {
+        "properties": {
+          "scope_id": {
+            "type": "string",
+            "title": "Scope Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "USD"
+          },
+          "model_cost_usd": {
+            "type": "number",
+            "title": "Model Cost Usd",
+            "default": 0.0
+          },
+          "monitor_cost_usd": {
+            "type": "number",
+            "title": "Monitor Cost Usd",
+            "default": 0.0
+          },
+          "total_cost_usd": {
+            "type": "number",
+            "title": "Total Cost Usd",
+            "default": 0.0
+          },
+          "session_cost": {
+            "$ref": "#/components/schemas/OpenRouterSessionCostResponse",
+            "nullable": true
+          },
+          "monitoring_cost": {
+            "$ref": "#/components/schemas/MonitoringCostSummaryResponse",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope_id"
+        ],
+        "title": "ServiceCostSummaryResponse",
+        "description": "Combined backend service cost for one scope_id session."
       },
       "SupportedTradingAssetsResponse": {
         "properties": {
