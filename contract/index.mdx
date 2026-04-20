@@ -8,6 +8,40 @@ Rabit Contract is the Solana program that lets the product charge for backend wo
 
 Instead of keeping pricing and authorization fully off-chain, it introduces a contract-side payment and permission layer built around vaults, delegated signers, usage records, and fee accounting.
 
+## Contract Address
+
+| Field | Value |
+| --- | --- |
+| Contract name | `rabit_contract` |
+| Devnet program address | `DLm4eybf935a2TUgiBTvENmZMCMV9fa63wvVP3n7HW21` |
+
+## Devnet Address Breakdown
+
+### Singleton addresses
+
+These are the fixed addresses for the current devnet deployment.
+
+| Component | Address | Notes |
+| --- | --- | --- |
+| Program / contract address | `DLm4eybf935a2TUgiBTvENmZMCMV9fa63wvVP3n7HW21` | main program id |
+| Admin authority | `HfMHdkJuHztBm1y2JpPfZwauqesZQdmenQaHVL3J9wMP` | current config authority |
+| Backend authority | `HfMHdkJuHztBm1y2JpPfZwauqesZQdmenQaHVL3J9wMP` | current backend signer for delegated usage |
+| Platform config PDA | `F9buv5ScBe1iYHfZgv3NSGygSSUCzGmt1fjnHdp1Pbdz` | singleton config account |
+| Fee vault PDA | `FvN3wwxDm4oE7caFdHdBXmgHxNd8fSPcAgJmVcdnRURq` | protocol fee collection account |
+
+### Dynamic addresses
+
+These addresses are derived per user or per model, so there is no single permanent address for the whole contract.
+
+| Component | Address pattern | Why it is dynamic |
+| --- | --- | --- |
+| User vault | `PDA(["vault", owner])` | every user gets their own prepaid vault |
+| Delegated signer | `PDA(["delegated_signer", owner, delegate])` | every owner/delegate pair gets its own delegation account |
+| Usage record | `PDA(["ai_usage", vault, usage_sequence])` | every usage charge creates a new immutable receipt |
+| Model registry | `PDA(["model_registry", model_id])` | every model has its own registry account |
+
+For the full current model registry list, see [/contract/model-registry-catalog](/contract/model-registry-catalog).
+
 ## Why it matters
 
 Rabit Contract gives the product a simple charging model with real operational weight:

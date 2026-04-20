@@ -169,7 +169,8 @@
             "expanded": false,
             "pages": [
               "contract/api-reference",
-              "contract/instruction-spec"
+              "contract/instruction-spec",
+              "contract/model-registry-catalog"
             ]
           },
           {

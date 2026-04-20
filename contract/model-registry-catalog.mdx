@@ -1,0 +1,352 @@
+---
+title: "Model Registry Catalog"
+description: "The current OpenRouter-backed model catalog and the on-chain registry ids used by the Rabit Contract."
+---
+
+This page lists the current enabled model catalog that Rabit can seed into the on-chain `ModelRegistry`.
+
+## Summary
+
+| Metric | Value |
+| --- | --- |
+| enabled source models | 314 |
+| models using original id on-chain | 285 |
+| models using shortened on-chain alias | 29 |
+
+## Why some registry ids are shorter
+
+The contract currently derives `ModelRegistry` PDAs from the on-chain `model_id` string.
+
+Because a Solana PDA seed is limited to 32 bytes, some OpenRouter model ids are too long to use directly.
+
+For those models, Rabit uses a deterministic shortened alias that:
+
+- stays visually similar to the original id
+- keeps the provider prefix
+- adds a short hash suffix for uniqueness
+
+Backend-side lookup can use:
+
+- alias map file: `target/model-registry-aliases.json`
+- reusable helper: `scripts/model-registry-helper.js`
+
+That allows off-chain code to translate cleanly between provider ids and on-chain registry ids.
+
+## Catalog
+
+| No | Model Name | Source Model ID | On-chain Registry ID | Provider | Aliased |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Anthropic: Claude Opus 4.7 | `anthropic/claude-opus-4.7` | `anthropic/claude-opus-4.7` | anthropic | no |
+| 2 | Anthropic: Claude Opus 4.6 (Fast) | `anthropic/claude-opus-4.6-fast` | `anthropic/claude-opus-4.6-fast` | anthropic | no |
+| 3 | Z.ai: GLM 5.1 | `z-ai/glm-5.1` | `z-ai/glm-5.1` | z-ai | no |
+| 4 | Google: Gemma 4 26B A4B | `google/gemma-4-26b-a4b-it` | `google/gemma-4-26b-a4b-it` | google | no |
+| 5 | Google: Gemma 4 31B | `google/gemma-4-31b-it` | `google/gemma-4-31b-it` | google | no |
+| 6 | Qwen: Qwen3.6 Plus | `qwen/qwen3.6-plus` | `qwen/qwen3.6-plus` | qwen | no |
+| 7 | Z.ai: GLM 5V Turbo | `z-ai/glm-5v-turbo` | `z-ai/glm-5v-turbo` | z-ai | no |
+| 8 | Arcee AI: Trinity Large Thinking | `arcee-ai/trinity-large-thinking` | `arcee-ai/trinity-large-thinking` | arcee-ai | no |
+| 9 | xAI: Grok 4.20 Multi-Agent | `x-ai/grok-4.20-multi-agent` | `x-ai/grok-4.20-multi-agent` | x-ai | no |
+| 10 | xAI: Grok 4.20 | `x-ai/grok-4.20` | `x-ai/grok-4.20` | x-ai | no |
+| 11 | Kwaipilot: KAT-Coder-Pro V2 | `kwaipilot/kat-coder-pro-v2` | `kwaipilot/kat-coder-pro-v2` | kwaipilot | no |
+| 12 | Reka Edge | `rekaai/reka-edge` | `rekaai/reka-edge` | rekaai | no |
+| 13 | Xiaomi: MiMo-V2-Omni | `xiaomi/mimo-v2-omni` | `xiaomi/mimo-v2-omni` | xiaomi | no |
+| 14 | Xiaomi: MiMo-V2-Pro | `xiaomi/mimo-v2-pro` | `xiaomi/mimo-v2-pro` | xiaomi | no |
+| 15 | MiniMax: MiniMax M2.7 | `minimax/minimax-m2.7` | `minimax/minimax-m2.7` | minimax | no |
+| 16 | OpenAI: GPT-5.4 Nano | `openai/gpt-5.4-nano` | `openai/gpt-5.4-nano` | openai | no |
+| 17 | OpenAI: GPT-5.4 Mini | `openai/gpt-5.4-mini` | `openai/gpt-5.4-mini` | openai | no |
+| 18 | Mistral: Mistral Small 4 | `mistralai/mistral-small-2603` | `mistralai/mistral-small-2603` | mistralai | no |
+| 19 | Z.ai: GLM 5 Turbo | `z-ai/glm-5-turbo` | `z-ai/glm-5-turbo` | z-ai | no |
+| 20 | NVIDIA: Nemotron 3 Super | `nvidia/nemotron-3-super-120b-a12b` | `nvidia/nemotron-3-super-1-b35863` | nvidia | yes |
+| 21 | ByteDance Seed: Seed-2.0-Lite | `bytedance-seed/seed-2.0-lite` | `bytedance-seed/seed-2.0-lite` | bytedance-seed | no |
+| 22 | Qwen: Qwen3.5-9B | `qwen/qwen3.5-9b` | `qwen/qwen3.5-9b` | qwen | no |
+| 23 | OpenAI: GPT-5.4 Pro | `openai/gpt-5.4-pro` | `openai/gpt-5.4-pro` | openai | no |
+| 24 | OpenAI: GPT-5.4 | `openai/gpt-5.4` | `openai/gpt-5.4` | openai | no |
+| 25 | Inception: Mercury 2 | `inception/mercury-2` | `inception/mercury-2` | inception | no |
+| 26 | OpenAI: GPT-5.3 Chat | `openai/gpt-5.3-chat` | `openai/gpt-5.3-chat` | openai | no |
+| 27 | Google: Gemini 3.1 Flash Lite Preview | `google/gemini-3.1-flash-lite-preview` | `google/gemini-3-1-flash-l-5611e8` | google | yes |
+| 28 | ByteDance Seed: Seed-2.0-Mini | `bytedance-seed/seed-2.0-mini` | `bytedance-seed/seed-2.0-mini` | bytedance-seed | no |
+| 29 | Google: Nano Banana 2 (Gemini 3.1 Flash Image Preview) | `google/gemini-3.1-flash-image-preview` | `google/gemini-3-1-flash-i-2912e3` | google | yes |
+| 30 | Qwen: Qwen3.5-35B-A3B | `qwen/qwen3.5-35b-a3b` | `qwen/qwen3.5-35b-a3b` | qwen | no |
+| 31 | Qwen: Qwen3.5-27B | `qwen/qwen3.5-27b` | `qwen/qwen3.5-27b` | qwen | no |
+| 32 | Qwen: Qwen3.5-122B-A10B | `qwen/qwen3.5-122b-a10b` | `qwen/qwen3.5-122b-a10b` | qwen | no |
+| 33 | Qwen: Qwen3.5-Flash | `qwen/qwen3.5-flash-02-23` | `qwen/qwen3.5-flash-02-23` | qwen | no |
+| 34 | LiquidAI: LFM2-24B-A2B | `liquid/lfm-2-24b-a2b` | `liquid/lfm-2-24b-a2b` | liquid | no |
+| 35 | Google: Gemini 3.1 Pro Preview Custom Tools | `google/gemini-3.1-pro-preview-customtools` | `google/gemini-3-1-pro-pre-84e88e` | google | yes |
+| 36 | OpenAI: GPT-5.3-Codex | `openai/gpt-5.3-codex` | `openai/gpt-5.3-codex` | openai | no |
+| 37 | AionLabs: Aion-2.0 | `aion-labs/aion-2.0` | `aion-labs/aion-2.0` | aion-labs | no |
+| 38 | Google: Gemini 3.1 Pro Preview | `google/gemini-3.1-pro-preview` | `google/gemini-3.1-pro-preview` | google | no |
+| 39 | Anthropic: Claude Sonnet 4.6 | `anthropic/claude-sonnet-4.6` | `anthropic/claude-sonnet-4.6` | anthropic | no |
+| 40 | Qwen: Qwen3.5 Plus 2026-02-15 | `qwen/qwen3.5-plus-02-15` | `qwen/qwen3.5-plus-02-15` | qwen | no |
+| 41 | Qwen: Qwen3.5 397B A17B | `qwen/qwen3.5-397b-a17b` | `qwen/qwen3.5-397b-a17b` | qwen | no |
+| 42 | MiniMax: MiniMax M2.5 | `minimax/minimax-m2.5` | `minimax/minimax-m2.5` | minimax | no |
+| 43 | Z.ai: GLM 5 | `z-ai/glm-5` | `z-ai/glm-5` | z-ai | no |
+| 44 | Qwen: Qwen3 Max Thinking | `qwen/qwen3-max-thinking` | `qwen/qwen3-max-thinking` | qwen | no |
+| 45 | Anthropic: Claude Opus 4.6 | `anthropic/claude-opus-4.6` | `anthropic/claude-opus-4.6` | anthropic | no |
+| 46 | Qwen: Qwen3 Coder Next | `qwen/qwen3-coder-next` | `qwen/qwen3-coder-next` | qwen | no |
+| 47 | StepFun: Step 3.5 Flash | `stepfun/step-3.5-flash` | `stepfun/step-3.5-flash` | stepfun | no |
+| 48 | MoonshotAI: Kimi K2.5 | `moonshotai/kimi-k2.5` | `moonshotai/kimi-k2.5` | moonshotai | no |
+| 49 | Upstage: Solar Pro 3 | `upstage/solar-pro-3` | `upstage/solar-pro-3` | upstage | no |
+| 50 | MiniMax: MiniMax M2-her | `minimax/minimax-m2-her` | `minimax/minimax-m2-her` | minimax | no |
+| 51 | Writer: Palmyra X5 | `writer/palmyra-x5` | `writer/palmyra-x5` | writer | no |
+| 52 | OpenAI: GPT Audio | `openai/gpt-audio` | `openai/gpt-audio` | openai | no |
+| 53 | OpenAI: GPT Audio Mini | `openai/gpt-audio-mini` | `openai/gpt-audio-mini` | openai | no |
+| 54 | Z.ai: GLM 4.7 Flash | `z-ai/glm-4.7-flash` | `z-ai/glm-4.7-flash` | z-ai | no |
+| 55 | OpenAI: GPT-5.2-Codex | `openai/gpt-5.2-codex` | `openai/gpt-5.2-codex` | openai | no |
+| 56 | AllenAI: Olmo 3.1 32B Instruct | `allenai/olmo-3.1-32b-instruct` | `allenai/olmo-3.1-32b-instruct` | allenai | no |
+| 57 | ByteDance Seed: Seed 1.6 Flash | `bytedance-seed/seed-1.6-flash` | `bytedance-seed/seed-1.6-flash` | bytedance-seed | no |
+| 58 | ByteDance Seed: Seed 1.6 | `bytedance-seed/seed-1.6` | `bytedance-seed/seed-1.6` | bytedance-seed | no |
+| 59 | MiniMax: MiniMax M2.1 | `minimax/minimax-m2.1` | `minimax/minimax-m2.1` | minimax | no |
+| 60 | Z.ai: GLM 4.7 | `z-ai/glm-4.7` | `z-ai/glm-4.7` | z-ai | no |
+| 61 | Google: Gemini 3 Flash Preview | `google/gemini-3-flash-preview` | `google/gemini-3-flash-preview` | google | no |
+| 62 | Mistral: Mistral Small Creative | `mistralai/mistral-small-creative` | `mistralai/mistral-small-creative` | mistralai | no |
+| 63 | Xiaomi: MiMo-V2-Flash | `xiaomi/mimo-v2-flash` | `xiaomi/mimo-v2-flash` | xiaomi | no |
+| 64 | NVIDIA: Nemotron 3 Nano 30B A3B | `nvidia/nemotron-3-nano-30b-a3b` | `nvidia/nemotron-3-nano-30b-a3b` | nvidia | no |
+| 65 | OpenAI: GPT-5.2 Chat | `openai/gpt-5.2-chat` | `openai/gpt-5.2-chat` | openai | no |
+| 66 | OpenAI: GPT-5.2 Pro | `openai/gpt-5.2-pro` | `openai/gpt-5.2-pro` | openai | no |
+| 67 | OpenAI: GPT-5.2 | `openai/gpt-5.2` | `openai/gpt-5.2` | openai | no |
+| 68 | Mistral: Devstral 2 2512 | `mistralai/devstral-2512` | `mistralai/devstral-2512` | mistralai | no |
+| 69 | Relace: Relace Search | `relace/relace-search` | `relace/relace-search` | relace | no |
+| 70 | Z.ai: GLM 4.6V | `z-ai/glm-4.6v` | `z-ai/glm-4.6v` | z-ai | no |
+| 71 | Nex AGI: DeepSeek V3.1 Nex N1 | `nex-agi/deepseek-v3.1-nex-n1` | `nex-agi/deepseek-v3.1-nex-n1` | nex-agi | no |
+| 72 | EssentialAI: Rnj 1 Instruct | `essentialai/rnj-1-instruct` | `essentialai/rnj-1-instruct` | essentialai | no |
+| 73 | Body Builder (beta) | `openrouter/bodybuilder` | `openrouter/bodybuilder` | openrouter | no |
+| 74 | OpenAI: GPT-5.1-Codex-Max | `openai/gpt-5.1-codex-max` | `openai/gpt-5.1-codex-max` | openai | no |
+| 75 | Amazon: Nova 2 Lite | `amazon/nova-2-lite-v1` | `amazon/nova-2-lite-v1` | amazon | no |
+| 76 | Mistral: Ministral 3 14B 2512 | `mistralai/ministral-14b-2512` | `mistralai/ministral-14b-2512` | mistralai | no |
+| 77 | Mistral: Ministral 3 8B 2512 | `mistralai/ministral-8b-2512` | `mistralai/ministral-8b-2512` | mistralai | no |
+| 78 | Mistral: Ministral 3 3B 2512 | `mistralai/ministral-3b-2512` | `mistralai/ministral-3b-2512` | mistralai | no |
+| 79 | Mistral: Mistral Large 3 2512 | `mistralai/mistral-large-2512` | `mistralai/mistral-large-2512` | mistralai | no |
+| 80 | Arcee AI: Trinity Mini | `arcee-ai/trinity-mini` | `arcee-ai/trinity-mini` | arcee-ai | no |
+| 81 | DeepSeek: DeepSeek V3.2 Speciale | `deepseek/deepseek-v3.2-speciale` | `deepseek/deepseek-v3.2-speciale` | deepseek | no |
+| 82 | DeepSeek: DeepSeek V3.2 | `deepseek/deepseek-v3.2` | `deepseek/deepseek-v3.2` | deepseek | no |
+| 83 | Prime Intellect: INTELLECT-3 | `prime-intellect/intellect-3` | `prime-intellect/intellect-3` | prime-intellect | no |
+| 84 | Anthropic: Claude Opus 4.5 | `anthropic/claude-opus-4.5` | `anthropic/claude-opus-4.5` | anthropic | no |
+| 85 | AllenAI: Olmo 3 32B Think | `allenai/olmo-3-32b-think` | `allenai/olmo-3-32b-think` | allenai | no |
+| 86 | Google: Nano Banana Pro (Gemini 3 Pro Image Preview) | `google/gemini-3-pro-image-preview` | `google/gemini-3-pro-image-899919` | google | yes |
+| 87 | xAI: Grok 4.1 Fast | `x-ai/grok-4.1-fast` | `x-ai/grok-4.1-fast` | x-ai | no |
+| 88 | Deep Cogito: Cogito v2.1 671B | `deepcogito/cogito-v2.1-671b` | `deepcogito/cogito-v2.1-671b` | deepcogito | no |
+| 89 | OpenAI: GPT-5.1 | `openai/gpt-5.1` | `openai/gpt-5.1` | openai | no |
+| 90 | OpenAI: GPT-5.1 Chat | `openai/gpt-5.1-chat` | `openai/gpt-5.1-chat` | openai | no |
+| 91 | OpenAI: GPT-5.1-Codex | `openai/gpt-5.1-codex` | `openai/gpt-5.1-codex` | openai | no |
+| 92 | OpenAI: GPT-5.1-Codex-Mini | `openai/gpt-5.1-codex-mini` | `openai/gpt-5.1-codex-mini` | openai | no |
+| 93 | MoonshotAI: Kimi K2 Thinking | `moonshotai/kimi-k2-thinking` | `moonshotai/kimi-k2-thinking` | moonshotai | no |
+| 94 | Amazon: Nova Premier 1.0 | `amazon/nova-premier-v1` | `amazon/nova-premier-v1` | amazon | no |
+| 95 | Perplexity: Sonar Pro Search | `perplexity/sonar-pro-search` | `perplexity/sonar-pro-search` | perplexity | no |
+| 96 | Mistral: Voxtral Small 24B 2507 | `mistralai/voxtral-small-24b-2507` | `mistralai/voxtral-small-24b-2507` | mistralai | no |
+| 97 | OpenAI: gpt-oss-safeguard-20b | `openai/gpt-oss-safeguard-20b` | `openai/gpt-oss-safeguard-20b` | openai | no |
+| 98 | NVIDIA: Nemotron Nano 12B 2 VL | `nvidia/nemotron-nano-12b-v2-vl` | `nvidia/nemotron-nano-12b-v2-vl` | nvidia | no |
+| 99 | MiniMax: MiniMax M2 | `minimax/minimax-m2` | `minimax/minimax-m2` | minimax | no |
+| 100 | Qwen: Qwen3 VL 32B Instruct | `qwen/qwen3-vl-32b-instruct` | `qwen/qwen3-vl-32b-instruct` | qwen | no |
+| 101 | IBM: Granite 4.0 Micro | `ibm-granite/granite-4.0-h-micro` | `ibm-granite/granite-4.0-h-micro` | ibm-granite | no |
+| 102 | OpenAI: GPT-5 Image Mini | `openai/gpt-5-image-mini` | `openai/gpt-5-image-mini` | openai | no |
+| 103 | Anthropic: Claude Haiku 4.5 | `anthropic/claude-haiku-4.5` | `anthropic/claude-haiku-4.5` | anthropic | no |
+| 104 | Qwen: Qwen3 VL 8B Thinking | `qwen/qwen3-vl-8b-thinking` | `qwen/qwen3-vl-8b-thinking` | qwen | no |
+| 105 | Qwen: Qwen3 VL 8B Instruct | `qwen/qwen3-vl-8b-instruct` | `qwen/qwen3-vl-8b-instruct` | qwen | no |
+| 106 | OpenAI: GPT-5 Image | `openai/gpt-5-image` | `openai/gpt-5-image` | openai | no |
+| 107 | OpenAI: o3 Deep Research | `openai/o3-deep-research` | `openai/o3-deep-research` | openai | no |
+| 108 | OpenAI: o4 Mini Deep Research | `openai/o4-mini-deep-research` | `openai/o4-mini-deep-research` | openai | no |
+| 109 | NVIDIA: Llama 3.3 Nemotron Super 49B V1.5 | `nvidia/llama-3.3-nemotron-super-49b-v1.5` | `nvidia/llama-3-3-nemotron-ebca1e` | nvidia | yes |
+| 110 | Baidu: ERNIE 4.5 21B A3B Thinking | `baidu/ernie-4.5-21b-a3b-thinking` | `baidu/ernie-4.5-21b-a3b-thinking` | baidu | no |
+| 111 | Google: Nano Banana (Gemini 2.5 Flash Image) | `google/gemini-2.5-flash-image` | `google/gemini-2.5-flash-image` | google | no |
+| 112 | Qwen: Qwen3 VL 30B A3B Thinking | `qwen/qwen3-vl-30b-a3b-thinking` | `qwen/qwen3-vl-30b-a3b-thinking` | qwen | no |
+| 113 | Qwen: Qwen3 VL 30B A3B Instruct | `qwen/qwen3-vl-30b-a3b-instruct` | `qwen/qwen3-vl-30b-a3b-instruct` | qwen | no |
+| 114 | OpenAI: GPT-5 Pro | `openai/gpt-5-pro` | `openai/gpt-5-pro` | openai | no |
+| 115 | Z.ai: GLM 4.6 | `z-ai/glm-4.6` | `z-ai/glm-4.6` | z-ai | no |
+| 116 | Anthropic: Claude Sonnet 4.5 | `anthropic/claude-sonnet-4.5` | `anthropic/claude-sonnet-4.5` | anthropic | no |
+| 117 | DeepSeek: DeepSeek V3.2 Exp | `deepseek/deepseek-v3.2-exp` | `deepseek/deepseek-v3.2-exp` | deepseek | no |
+| 118 | TheDrummer: Cydonia 24B V4.1 | `thedrummer/cydonia-24b-v4.1` | `thedrummer/cydonia-24b-v4.1` | thedrummer | no |
+| 119 | Relace: Relace Apply 3 | `relace/relace-apply-3` | `relace/relace-apply-3` | relace | no |
+| 120 | Google: Gemini 2.5 Flash Lite Preview 09-2025 | `google/gemini-2.5-flash-lite-preview-09-2025` | `google/gemini-2-5-flash-l-abc38e` | google | yes |
+| 121 | Qwen: Qwen3 VL 235B A22B Thinking | `qwen/qwen3-vl-235b-a22b-thinking` | `qwen/qwen3-vl-235b-a22b-thinking` | qwen | no |
+| 122 | Qwen: Qwen3 VL 235B A22B Instruct | `qwen/qwen3-vl-235b-a22b-instruct` | `qwen/qwen3-vl-235b-a22b-instruct` | qwen | no |
+| 123 | Qwen: Qwen3 Max | `qwen/qwen3-max` | `qwen/qwen3-max` | qwen | no |
+| 124 | Qwen: Qwen3 Coder Plus | `qwen/qwen3-coder-plus` | `qwen/qwen3-coder-plus` | qwen | no |
+| 125 | OpenAI: GPT-5 Codex | `openai/gpt-5-codex` | `openai/gpt-5-codex` | openai | no |
+| 126 | DeepSeek: DeepSeek V3.1 Terminus | `deepseek/deepseek-v3.1-terminus` | `deepseek/deepseek-v3.1-terminus` | deepseek | no |
+| 127 | xAI: Grok 4 Fast | `x-ai/grok-4-fast` | `x-ai/grok-4-fast` | x-ai | no |
+| 128 | Tongyi DeepResearch 30B A3B | `alibaba/tongyi-deepresearch-30b-a3b` | `alibaba/tongyi-deepresear-cfee22` | alibaba | yes |
+| 129 | Qwen: Qwen3 Coder Flash | `qwen/qwen3-coder-flash` | `qwen/qwen3-coder-flash` | qwen | no |
+| 130 | Qwen: Qwen3 Next 80B A3B Thinking | `qwen/qwen3-next-80b-a3b-thinking` | `qwen/qwen3-next-80b-a3b-thinking` | qwen | no |
+| 131 | Qwen: Qwen3 Next 80B A3B Instruct | `qwen/qwen3-next-80b-a3b-instruct` | `qwen/qwen3-next-80b-a3b-instruct` | qwen | no |
+| 132 | Qwen: Qwen Plus 0728 (thinking) | `qwen/qwen-plus-2025-07-28:thinking` | `qwen/qwen-plus-2025-07-28-225f14` | qwen | yes |
+| 133 | Qwen: Qwen Plus 0728 | `qwen/qwen-plus-2025-07-28` | `qwen/qwen-plus-2025-07-28` | qwen | no |
+| 134 | NVIDIA: Nemotron Nano 9B V2 | `nvidia/nemotron-nano-9b-v2` | `nvidia/nemotron-nano-9b-v2` | nvidia | no |
+| 135 | MoonshotAI: Kimi K2 0905 | `moonshotai/kimi-k2-0905` | `moonshotai/kimi-k2-0905` | moonshotai | no |
+| 136 | Qwen: Qwen3 30B A3B Thinking 2507 | `qwen/qwen3-30b-a3b-thinking-2507` | `qwen/qwen3-30b-a3b-thinking-2507` | qwen | no |
+| 137 | xAI: Grok Code Fast 1 | `x-ai/grok-code-fast-1` | `x-ai/grok-code-fast-1` | x-ai | no |
+| 138 | Nous: Hermes 4 70B | `nousresearch/hermes-4-70b` | `nousresearch/hermes-4-70b` | nousresearch | no |
+| 139 | Nous: Hermes 4 405B | `nousresearch/hermes-4-405b` | `nousresearch/hermes-4-405b` | nousresearch | no |
+| 140 | DeepSeek: DeepSeek V3.1 | `deepseek/deepseek-chat-v3.1` | `deepseek/deepseek-chat-v3.1` | deepseek | no |
+| 141 | OpenAI: GPT-4o Audio | `openai/gpt-4o-audio-preview` | `openai/gpt-4o-audio-preview` | openai | no |
+| 142 | Mistral: Mistral Medium 3.1 | `mistralai/mistral-medium-3.1` | `mistralai/mistral-medium-3.1` | mistralai | no |
+| 143 | Baidu: ERNIE 4.5 21B A3B | `baidu/ernie-4.5-21b-a3b` | `baidu/ernie-4.5-21b-a3b` | baidu | no |
+| 144 | Baidu: ERNIE 4.5 VL 28B A3B | `baidu/ernie-4.5-vl-28b-a3b` | `baidu/ernie-4.5-vl-28b-a3b` | baidu | no |
+| 145 | Z.ai: GLM 4.5V | `z-ai/glm-4.5v` | `z-ai/glm-4.5v` | z-ai | no |
+| 146 | AI21: Jamba Large 1.7 | `ai21/jamba-large-1.7` | `ai21/jamba-large-1.7` | ai21 | no |
+| 147 | OpenAI: GPT-5 Chat | `openai/gpt-5-chat` | `openai/gpt-5-chat` | openai | no |
+| 148 | OpenAI: GPT-5 | `openai/gpt-5` | `openai/gpt-5` | openai | no |
+| 149 | OpenAI: GPT-5 Mini | `openai/gpt-5-mini` | `openai/gpt-5-mini` | openai | no |
+| 150 | OpenAI: GPT-5 Nano | `openai/gpt-5-nano` | `openai/gpt-5-nano` | openai | no |
+| 151 | OpenAI: gpt-oss-120b | `openai/gpt-oss-120b` | `openai/gpt-oss-120b` | openai | no |
+| 152 | OpenAI: gpt-oss-20b | `openai/gpt-oss-20b` | `openai/gpt-oss-20b` | openai | no |
+| 153 | Anthropic: Claude Opus 4.1 | `anthropic/claude-opus-4.1` | `anthropic/claude-opus-4.1` | anthropic | no |
+| 154 | Mistral: Codestral 2508 | `mistralai/codestral-2508` | `mistralai/codestral-2508` | mistralai | no |
+| 155 | Qwen: Qwen3 Coder 30B A3B Instruct | `qwen/qwen3-coder-30b-a3b-instruct` | `qwen/qwen3-coder-30b-a3b-41357a` | qwen | yes |
+| 156 | Qwen: Qwen3 30B A3B Instruct 2507 | `qwen/qwen3-30b-a3b-instruct-2507` | `qwen/qwen3-30b-a3b-instruct-2507` | qwen | no |
+| 157 | Z.ai: GLM 4.5 | `z-ai/glm-4.5` | `z-ai/glm-4.5` | z-ai | no |
+| 158 | Z.ai: GLM 4.5 Air | `z-ai/glm-4.5-air` | `z-ai/glm-4.5-air` | z-ai | no |
+| 159 | Qwen: Qwen3 235B A22B Thinking 2507 | `qwen/qwen3-235b-a22b-thinking-2507` | `qwen/qwen3-235b-a22b-thin-5b5c33` | qwen | yes |
+| 160 | Z.ai: GLM 4 32B | `z-ai/glm-4-32b` | `z-ai/glm-4-32b` | z-ai | no |
+| 161 | Qwen: Qwen3 Coder 480B A35B | `qwen/qwen3-coder` | `qwen/qwen3-coder` | qwen | no |
+| 162 | ByteDance: UI-TARS 7B | `bytedance/ui-tars-1.5-7b` | `bytedance/ui-tars-1.5-7b` | bytedance | no |
+| 163 | Google: Gemini 2.5 Flash Lite | `google/gemini-2.5-flash-lite` | `google/gemini-2.5-flash-lite` | google | no |
+| 164 | Qwen: Qwen3 235B A22B Instruct 2507 | `qwen/qwen3-235b-a22b-2507` | `qwen/qwen3-235b-a22b-2507` | qwen | no |
+| 165 | Switchpoint Router | `switchpoint/router` | `switchpoint/router` | switchpoint | no |
+| 166 | MoonshotAI: Kimi K2 0711 | `moonshotai/kimi-k2` | `moonshotai/kimi-k2` | moonshotai | no |
+| 167 | Mistral: Devstral Medium | `mistralai/devstral-medium` | `mistralai/devstral-medium` | mistralai | no |
+| 168 | Mistral: Devstral Small 1.1 | `mistralai/devstral-small` | `mistralai/devstral-small` | mistralai | no |
+| 169 | xAI: Grok 4 | `x-ai/grok-4` | `x-ai/grok-4` | x-ai | no |
+| 170 | Tencent: Hunyuan A13B Instruct | `tencent/hunyuan-a13b-instruct` | `tencent/hunyuan-a13b-instruct` | tencent | no |
+| 171 | TNG: DeepSeek R1T2 Chimera | `tngtech/deepseek-r1t2-chimera` | `tngtech/deepseek-r1t2-chimera` | tngtech | no |
+| 172 | Morph: Morph V3 Large | `morph/morph-v3-large` | `morph/morph-v3-large` | morph | no |
+| 173 | Morph: Morph V3 Fast | `morph/morph-v3-fast` | `morph/morph-v3-fast` | morph | no |
+| 174 | Baidu: ERNIE 4.5 VL 424B A47B | `baidu/ernie-4.5-vl-424b-a47b` | `baidu/ernie-4.5-vl-424b-a47b` | baidu | no |
+| 175 | Baidu: ERNIE 4.5 300B A47B | `baidu/ernie-4.5-300b-a47b` | `baidu/ernie-4.5-300b-a47b` | baidu | no |
+| 176 | Mistral: Mistral Small 3.2 24B | `mistralai/mistral-small-3.2-24b-instruct` | `mistralai/mistral-small-3-166623` | mistralai | yes |
+| 177 | MiniMax: MiniMax M1 | `minimax/minimax-m1` | `minimax/minimax-m1` | minimax | no |
+| 178 | Google: Gemini 2.5 Flash | `google/gemini-2.5-flash` | `google/gemini-2.5-flash` | google | no |
+| 179 | Google: Gemini 2.5 Pro | `google/gemini-2.5-pro` | `google/gemini-2.5-pro` | google | no |
+| 180 | OpenAI: o3 Pro | `openai/o3-pro` | `openai/o3-pro` | openai | no |
+| 181 | xAI: Grok 3 Mini | `x-ai/grok-3-mini` | `x-ai/grok-3-mini` | x-ai | no |
+| 182 | xAI: Grok 3 | `x-ai/grok-3` | `x-ai/grok-3` | x-ai | no |
+| 183 | Google: Gemini 2.5 Pro Preview 06-05 | `google/gemini-2.5-pro-preview` | `google/gemini-2.5-pro-preview` | google | no |
+| 184 | DeepSeek: R1 0528 | `deepseek/deepseek-r1-0528` | `deepseek/deepseek-r1-0528` | deepseek | no |
+| 185 | Anthropic: Claude Opus 4 | `anthropic/claude-opus-4` | `anthropic/claude-opus-4` | anthropic | no |
+| 186 | Anthropic: Claude Sonnet 4 | `anthropic/claude-sonnet-4` | `anthropic/claude-sonnet-4` | anthropic | no |
+| 187 | Google: Gemma 3n 4B | `google/gemma-3n-e4b-it` | `google/gemma-3n-e4b-it` | google | no |
+| 188 | Mistral: Mistral Medium 3 | `mistralai/mistral-medium-3` | `mistralai/mistral-medium-3` | mistralai | no |
+| 189 | Google: Gemini 2.5 Pro Preview 05-06 | `google/gemini-2.5-pro-preview-05-06` | `google/gemini-2-5-pro-pre-0b2d91` | google | yes |
+| 190 | Arcee AI: Spotlight | `arcee-ai/spotlight` | `arcee-ai/spotlight` | arcee-ai | no |
+| 191 | Arcee AI: Maestro Reasoning | `arcee-ai/maestro-reasoning` | `arcee-ai/maestro-reasoning` | arcee-ai | no |
+| 192 | Arcee AI: Virtuoso Large | `arcee-ai/virtuoso-large` | `arcee-ai/virtuoso-large` | arcee-ai | no |
+| 193 | Arcee AI: Coder Large | `arcee-ai/coder-large` | `arcee-ai/coder-large` | arcee-ai | no |
+| 194 | Meta: Llama Guard 4 12B | `meta-llama/llama-guard-4-12b` | `meta-llama/llama-guard-4-12b` | meta-llama | no |
+| 195 | Qwen: Qwen3 30B A3B | `qwen/qwen3-30b-a3b` | `qwen/qwen3-30b-a3b` | qwen | no |
+| 196 | Qwen: Qwen3 8B | `qwen/qwen3-8b` | `qwen/qwen3-8b` | qwen | no |
+| 197 | Qwen: Qwen3 14B | `qwen/qwen3-14b` | `qwen/qwen3-14b` | qwen | no |
+| 198 | Qwen: Qwen3 32B | `qwen/qwen3-32b` | `qwen/qwen3-32b` | qwen | no |
+| 199 | Qwen: Qwen3 235B A22B | `qwen/qwen3-235b-a22b` | `qwen/qwen3-235b-a22b` | qwen | no |
+| 200 | OpenAI: o4 Mini High | `openai/o4-mini-high` | `openai/o4-mini-high` | openai | no |
+| 201 | OpenAI: o3 | `openai/o3` | `openai/o3` | openai | no |
+| 202 | OpenAI: o4 Mini | `openai/o4-mini` | `openai/o4-mini` | openai | no |
+| 203 | OpenAI: GPT-4.1 | `openai/gpt-4.1` | `openai/gpt-4.1` | openai | no |
+| 204 | OpenAI: GPT-4.1 Mini | `openai/gpt-4.1-mini` | `openai/gpt-4.1-mini` | openai | no |
+| 205 | OpenAI: GPT-4.1 Nano | `openai/gpt-4.1-nano` | `openai/gpt-4.1-nano` | openai | no |
+| 206 | AlfredPros: CodeLLaMa 7B Instruct Solidity | `alfredpros/codellama-7b-instruct-solidity` | `alfredpros/codellama-7b-i-5446de` | alfredpros | yes |
+| 207 | xAI: Grok 3 Mini Beta | `x-ai/grok-3-mini-beta` | `x-ai/grok-3-mini-beta` | x-ai | no |
+| 208 | xAI: Grok 3 Beta | `x-ai/grok-3-beta` | `x-ai/grok-3-beta` | x-ai | no |
+| 209 | Meta: Llama 4 Maverick | `meta-llama/llama-4-maverick` | `meta-llama/llama-4-maverick` | meta-llama | no |
+| 210 | Meta: Llama 4 Scout | `meta-llama/llama-4-scout` | `meta-llama/llama-4-scout` | meta-llama | no |
+| 211 | DeepSeek: DeepSeek V3 0324 | `deepseek/deepseek-chat-v3-0324` | `deepseek/deepseek-chat-v3-0324` | deepseek | no |
+| 212 | OpenAI: o1-pro | `openai/o1-pro` | `openai/o1-pro` | openai | no |
+| 213 | Mistral: Mistral Small 3.1 24B | `mistralai/mistral-small-3.1-24b-instruct` | `mistralai/mistral-small-3-ac6831` | mistralai | yes |
+| 214 | Google: Gemma 3 4B | `google/gemma-3-4b-it` | `google/gemma-3-4b-it` | google | no |
+| 215 | Google: Gemma 3 12B | `google/gemma-3-12b-it` | `google/gemma-3-12b-it` | google | no |
+| 216 | Cohere: Command A | `cohere/command-a` | `cohere/command-a` | cohere | no |
+| 217 | OpenAI: GPT-4o-mini Search Preview | `openai/gpt-4o-mini-search-preview` | `openai/gpt-4o-mini-search-05ce35` | openai | yes |
+| 218 | OpenAI: GPT-4o Search Preview | `openai/gpt-4o-search-preview` | `openai/gpt-4o-search-preview` | openai | no |
+| 219 | Reka Flash 3 | `rekaai/reka-flash-3` | `rekaai/reka-flash-3` | rekaai | no |
+| 220 | Google: Gemma 3 27B | `google/gemma-3-27b-it` | `google/gemma-3-27b-it` | google | no |
+| 221 | TheDrummer: Skyfall 36B V2 | `thedrummer/skyfall-36b-v2` | `thedrummer/skyfall-36b-v2` | thedrummer | no |
+| 222 | Perplexity: Sonar Reasoning Pro | `perplexity/sonar-reasoning-pro` | `perplexity/sonar-reasoning-pro` | perplexity | no |
+| 223 | Perplexity: Sonar Pro | `perplexity/sonar-pro` | `perplexity/sonar-pro` | perplexity | no |
+| 224 | Perplexity: Sonar Deep Research | `perplexity/sonar-deep-research` | `perplexity/sonar-deep-research` | perplexity | no |
+| 225 | Qwen: QwQ 32B | `qwen/qwq-32b` | `qwen/qwq-32b` | qwen | no |
+| 226 | Google: Gemini 2.0 Flash Lite | `google/gemini-2.0-flash-lite-001` | `google/gemini-2.0-flash-lite-001` | google | no |
+| 227 | Anthropic: Claude 3.7 Sonnet | `anthropic/claude-3.7-sonnet` | `anthropic/claude-3.7-sonnet` | anthropic | no |
+| 228 | Anthropic: Claude 3.7 Sonnet (thinking) | `anthropic/claude-3.7-sonnet:thinking` | `anthropic/claude-3-7-sonn-fd57cb` | anthropic | yes |
+| 229 | Mistral: Saba | `mistralai/mistral-saba` | `mistralai/mistral-saba` | mistralai | no |
+| 230 | Llama Guard 3 8B | `meta-llama/llama-guard-3-8b` | `meta-llama/llama-guard-3-8b` | meta-llama | no |
+| 231 | OpenAI: o3 Mini High | `openai/o3-mini-high` | `openai/o3-mini-high` | openai | no |
+| 232 | Google: Gemini 2.0 Flash | `google/gemini-2.0-flash-001` | `google/gemini-2.0-flash-001` | google | no |
+| 233 | Qwen: Qwen VL Plus | `qwen/qwen-vl-plus` | `qwen/qwen-vl-plus` | qwen | no |
+| 234 | AionLabs: Aion-1.0 | `aion-labs/aion-1.0` | `aion-labs/aion-1.0` | aion-labs | no |
+| 235 | AionLabs: Aion-1.0-Mini | `aion-labs/aion-1.0-mini` | `aion-labs/aion-1.0-mini` | aion-labs | no |
+| 236 | AionLabs: Aion-RP 1.0 (8B) | `aion-labs/aion-rp-llama-3.1-8b` | `aion-labs/aion-rp-llama-3.1-8b` | aion-labs | no |
+| 237 | Qwen: Qwen VL Max | `qwen/qwen-vl-max` | `qwen/qwen-vl-max` | qwen | no |
+| 238 | Qwen: Qwen-Turbo | `qwen/qwen-turbo` | `qwen/qwen-turbo` | qwen | no |
+| 239 | Qwen: Qwen2.5 VL 72B Instruct | `qwen/qwen2.5-vl-72b-instruct` | `qwen/qwen2.5-vl-72b-instruct` | qwen | no |
+| 240 | Qwen: Qwen-Plus | `qwen/qwen-plus` | `qwen/qwen-plus` | qwen | no |
+| 241 | Qwen: Qwen-Max | `qwen/qwen-max` | `qwen/qwen-max` | qwen | no |
+| 242 | OpenAI: o3 Mini | `openai/o3-mini` | `openai/o3-mini` | openai | no |
+| 243 | Mistral: Mistral Small 3 | `mistralai/mistral-small-24b-instruct-2501` | `mistralai/mistral-small-2-124777` | mistralai | yes |
+| 244 | DeepSeek: R1 Distill Qwen 32B | `deepseek/deepseek-r1-distill-qwen-32b` | `deepseek/deepseek-r1-dist-035693` | deepseek | yes |
+| 245 | Perplexity: Sonar | `perplexity/sonar` | `perplexity/sonar` | perplexity | no |
+| 246 | DeepSeek: R1 Distill Llama 70B | `deepseek/deepseek-r1-distill-llama-70b` | `deepseek/deepseek-r1-dist-8b0912` | deepseek | yes |
+| 247 | DeepSeek: R1 | `deepseek/deepseek-r1` | `deepseek/deepseek-r1` | deepseek | no |
+| 248 | MiniMax: MiniMax-01 | `minimax/minimax-01` | `minimax/minimax-01` | minimax | no |
+| 249 | Microsoft: Phi 4 | `microsoft/phi-4` | `microsoft/phi-4` | microsoft | no |
+| 250 | Sao10K: Llama 3.1 70B Hanami x1 | `sao10k/l3.1-70b-hanami-x1` | `sao10k/l3.1-70b-hanami-x1` | sao10k | no |
+| 251 | DeepSeek: DeepSeek V3 | `deepseek/deepseek-chat` | `deepseek/deepseek-chat` | deepseek | no |
+| 252 | Sao10K: Llama 3.3 Euryale 70B | `sao10k/l3.3-euryale-70b` | `sao10k/l3.3-euryale-70b` | sao10k | no |
+| 253 | OpenAI: o1 | `openai/o1` | `openai/o1` | openai | no |
+| 254 | Cohere: Command R7B (12-2024) | `cohere/command-r7b-12-2024` | `cohere/command-r7b-12-2024` | cohere | no |
+| 255 | Meta: Llama 3.3 70B Instruct | `meta-llama/llama-3.3-70b-instruct` | `meta-llama/llama-3-3-70b-69ee4b` | meta-llama | yes |
+| 256 | Amazon: Nova Lite 1.0 | `amazon/nova-lite-v1` | `amazon/nova-lite-v1` | amazon | no |
+| 257 | Amazon: Nova Micro 1.0 | `amazon/nova-micro-v1` | `amazon/nova-micro-v1` | amazon | no |
+| 258 | Amazon: Nova Pro 1.0 | `amazon/nova-pro-v1` | `amazon/nova-pro-v1` | amazon | no |
+| 259 | OpenAI: GPT-4o (2024-11-20) | `openai/gpt-4o-2024-11-20` | `openai/gpt-4o-2024-11-20` | openai | no |
+| 260 | Mistral Large 2411 | `mistralai/mistral-large-2411` | `mistralai/mistral-large-2411` | mistralai | no |
+| 261 | Mistral Large 2407 | `mistralai/mistral-large-2407` | `mistralai/mistral-large-2407` | mistralai | no |
+| 262 | Mistral: Pixtral Large 2411 | `mistralai/pixtral-large-2411` | `mistralai/pixtral-large-2411` | mistralai | no |
+| 263 | Qwen2.5 Coder 32B Instruct | `qwen/qwen-2.5-coder-32b-instruct` | `qwen/qwen-2.5-coder-32b-instruct` | qwen | no |
+| 264 | TheDrummer: UnslopNemo 12B | `thedrummer/unslopnemo-12b` | `thedrummer/unslopnemo-12b` | thedrummer | no |
+| 265 | Anthropic: Claude 3.5 Haiku | `anthropic/claude-3.5-haiku` | `anthropic/claude-3.5-haiku` | anthropic | no |
+| 266 | Magnum v4 72B | `anthracite-org/magnum-v4-72b` | `anthracite-org/magnum-v4-72b` | anthracite-org | no |
+| 267 | Qwen: Qwen2.5 7B Instruct | `qwen/qwen-2.5-7b-instruct` | `qwen/qwen-2.5-7b-instruct` | qwen | no |
+| 268 | NVIDIA: Llama 3.1 Nemotron 70B Instruct | `nvidia/llama-3.1-nemotron-70b-instruct` | `nvidia/llama-3-1-nemotron-353330` | nvidia | yes |
+| 269 | Inflection: Inflection 3 Pi | `inflection/inflection-3-pi` | `inflection/inflection-3-pi` | inflection | no |
+| 270 | Inflection: Inflection 3 Productivity | `inflection/inflection-3-productivity` | `inflection/inflection-3-p-bcbec5` | inflection | yes |
+| 271 | TheDrummer: Rocinante 12B | `thedrummer/rocinante-12b` | `thedrummer/rocinante-12b` | thedrummer | no |
+| 272 | Meta: Llama 3.2 1B Instruct | `meta-llama/llama-3.2-1b-instruct` | `meta-llama/llama-3.2-1b-instruct` | meta-llama | no |
+| 273 | Meta: Llama 3.2 11B Vision Instruct | `meta-llama/llama-3.2-11b-vision-instruct` | `meta-llama/llama-3-2-11b-99c78a` | meta-llama | yes |
+| 274 | Meta: Llama 3.2 3B Instruct | `meta-llama/llama-3.2-3b-instruct` | `meta-llama/llama-3.2-3b-instruct` | meta-llama | no |
+| 275 | Qwen2.5 72B Instruct | `qwen/qwen-2.5-72b-instruct` | `qwen/qwen-2.5-72b-instruct` | qwen | no |
+| 276 | Cohere: Command R+ (08-2024) | `cohere/command-r-plus-08-2024` | `cohere/command-r-plus-08-2024` | cohere | no |
+| 277 | Cohere: Command R (08-2024) | `cohere/command-r-08-2024` | `cohere/command-r-08-2024` | cohere | no |
+| 278 | Sao10K: Llama 3.1 Euryale 70B v2.2 | `sao10k/l3.1-euryale-70b` | `sao10k/l3.1-euryale-70b` | sao10k | no |
+| 279 | Nous: Hermes 3 70B Instruct | `nousresearch/hermes-3-llama-3.1-70b` | `nousresearch/hermes-3-lla-d23be5` | nousresearch | yes |
+| 280 | Nous: Hermes 3 405B Instruct | `nousresearch/hermes-3-llama-3.1-405b` | `nousresearch/hermes-3-lla-d3a0f2` | nousresearch | yes |
+| 281 | Sao10K: Llama 3 8B Lunaris | `sao10k/l3-lunaris-8b` | `sao10k/l3-lunaris-8b` | sao10k | no |
+| 282 | OpenAI: GPT-4o (2024-08-06) | `openai/gpt-4o-2024-08-06` | `openai/gpt-4o-2024-08-06` | openai | no |
+| 283 | Meta: Llama 3.1 8B Instruct | `meta-llama/llama-3.1-8b-instruct` | `meta-llama/llama-3.1-8b-instruct` | meta-llama | no |
+| 284 | Meta: Llama 3.1 70B Instruct | `meta-llama/llama-3.1-70b-instruct` | `meta-llama/llama-3-1-70b-2150e9` | meta-llama | yes |
+| 285 | Mistral: Mistral Nemo | `mistralai/mistral-nemo` | `mistralai/mistral-nemo` | mistralai | no |
+| 286 | OpenAI: GPT-4o-mini | `openai/gpt-4o-mini` | `openai/gpt-4o-mini` | openai | no |
+| 287 | OpenAI: GPT-4o-mini (2024-07-18) | `openai/gpt-4o-mini-2024-07-18` | `openai/gpt-4o-mini-2024-07-18` | openai | no |
+| 288 | Google: Gemma 2 27B | `google/gemma-2-27b-it` | `google/gemma-2-27b-it` | google | no |
+| 289 | Sao10k: Llama 3 Euryale 70B v2.1 | `sao10k/l3-euryale-70b` | `sao10k/l3-euryale-70b` | sao10k | no |
+| 290 | NousResearch: Hermes 2 Pro - Llama-3 8B | `nousresearch/hermes-2-pro-llama-3-8b` | `nousresearch/hermes-2-pro-e27a80` | nousresearch | yes |
+| 291 | OpenAI: GPT-4o | `openai/gpt-4o` | `openai/gpt-4o` | openai | no |
+| 292 | OpenAI: GPT-4o (2024-05-13) | `openai/gpt-4o-2024-05-13` | `openai/gpt-4o-2024-05-13` | openai | no |
+| 293 | Meta: Llama 3 8B Instruct | `meta-llama/llama-3-8b-instruct` | `meta-llama/llama-3-8b-instruct` | meta-llama | no |
+| 294 | Meta: Llama 3 70B Instruct | `meta-llama/llama-3-70b-instruct` | `meta-llama/llama-3-70b-instruct` | meta-llama | no |
+| 295 | Mistral: Mixtral 8x22B Instruct | `mistralai/mixtral-8x22b-instruct` | `mistralai/mixtral-8x22b-instruct` | mistralai | no |
+| 296 | WizardLM-2 8x22B | `microsoft/wizardlm-2-8x22b` | `microsoft/wizardlm-2-8x22b` | microsoft | no |
+| 297 | OpenAI: GPT-4 Turbo | `openai/gpt-4-turbo` | `openai/gpt-4-turbo` | openai | no |
+| 298 | Anthropic: Claude 3 Haiku | `anthropic/claude-3-haiku` | `anthropic/claude-3-haiku` | anthropic | no |
+| 299 | Mistral Large | `mistralai/mistral-large` | `mistralai/mistral-large` | mistralai | no |
+| 300 | OpenAI: GPT-3.5 Turbo (older v0613) | `openai/gpt-3.5-turbo-0613` | `openai/gpt-3.5-turbo-0613` | openai | no |
+| 301 | OpenAI: GPT-4 Turbo Preview | `openai/gpt-4-turbo-preview` | `openai/gpt-4-turbo-preview` | openai | no |
+| 302 | Mistral: Mixtral 8x7B Instruct | `mistralai/mixtral-8x7b-instruct` | `mistralai/mixtral-8x7b-instruct` | mistralai | no |
+| 303 | Goliath 120B | `alpindale/goliath-120b` | `alpindale/goliath-120b` | alpindale | no |
+| 304 | Auto Router | `openrouter/auto` | `openrouter/auto` | openrouter | no |
+| 305 | OpenAI: GPT-4 Turbo (older v1106) | `openai/gpt-4-1106-preview` | `openai/gpt-4-1106-preview` | openai | no |
+| 306 | OpenAI: GPT-3.5 Turbo Instruct | `openai/gpt-3.5-turbo-instruct` | `openai/gpt-3.5-turbo-instruct` | openai | no |
+| 307 | Mistral: Mistral 7B Instruct v0.1 | `mistralai/mistral-7b-instruct-v0.1` | `mistralai/mistral-7b-inst-6c64b4` | mistralai | yes |
+| 308 | OpenAI: GPT-3.5 Turbo 16k | `openai/gpt-3.5-turbo-16k` | `openai/gpt-3.5-turbo-16k` | openai | no |
+| 309 | Mancer: Weaver (alpha) | `mancer/weaver` | `mancer/weaver` | mancer | no |
+| 310 | ReMM SLERP 13B | `undi95/remm-slerp-l2-13b` | `undi95/remm-slerp-l2-13b` | undi95 | no |
+| 311 | MythoMax 13B | `gryphe/mythomax-l2-13b` | `gryphe/mythomax-l2-13b` | gryphe | no |
+| 312 | OpenAI: GPT-4 | `openai/gpt-4` | `openai/gpt-4` | openai | no |
+| 313 | OpenAI: GPT-4 (older v0314) | `openai/gpt-4-0314` | `openai/gpt-4-0314` | openai | no |
+| 314 | OpenAI: GPT-3.5 Turbo | `openai/gpt-3.5-turbo` | `openai/gpt-3.5-turbo` | openai | no |

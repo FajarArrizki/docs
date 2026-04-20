@@ -10,11 +10,32 @@ This page explains the contract at the instruction and account level. It complem
 | Field | Value |
 | --- | --- |
 | Program name | Rabit Contract |
-| Program id | `C4tLzpTr3CQ78rPXv9oWURdayWa1t5kBsKSn5UyMJfVh` |
+| Program id | `DLm4eybf935a2TUgiBTvENmZMCMV9fa63wvVP3n7HW21` |
 | Target network | Solana |
 | Framework | Anchor 0.32+ / CLI 1.0 |
 | Primary language | Rust 1.93.1+ |
 | Main responsibility | Pay-as-you-go AI spending with user vaults and delegated charging |
+
+## Current Devnet Addresses
+
+### Fixed deployment addresses
+
+| Component | Address | Scope |
+| --- | --- | --- |
+| Program / contract | `DLm4eybf935a2TUgiBTvENmZMCMV9fa63wvVP3n7HW21` | current devnet deployment |
+| Admin authority | `HfMHdkJuHztBm1y2JpPfZwauqesZQdmenQaHVL3J9wMP` | current protocol admin |
+| Backend authority | `HfMHdkJuHztBm1y2JpPfZwauqesZQdmenQaHVL3J9wMP` | current delegated usage backend |
+| PlatformConfig PDA | `F9buv5ScBe1iYHfZgv3NSGygSSUCzGmt1fjnHdp1Pbdz` | singleton policy account |
+| FeeVault PDA | `FvN3wwxDm4oE7caFdHdBXmgHxNd8fSPcAgJmVcdnRURq` | singleton protocol fee account |
+
+### Dynamic addresses by design
+
+| Component | Derivation | Why it is not one fixed address |
+| --- | --- | --- |
+| `Vault` | `PDA(["vault", owner])` | one vault per user |
+| `DelegatedSigner` | `PDA(["delegated_signer", owner, delegate])` | one account per delegation pair |
+| `AiUsageRecord` | `PDA(["ai_usage", vault, usage_sequence])` | one immutable receipt per charge |
+| `ModelRegistry` | `PDA(["model_registry", model_id])` | one account per model |
 
 ## Architecture
 
@@ -115,6 +136,11 @@ flowchart TD
 - Automatic stats update on AI usage
 - Tracks: total_usage_count, total_tokens_processed
 - Optional in usage recording (flexible design)
+
+#### 2.4 Long Model Id Handling
+- Some OpenRouter model ids are longer than Solana's 32-byte PDA seed limit.
+- For those cases, the backend seeds the registry with a deterministic shortened on-chain alias.
+- The source id and on-chain registry id mapping is exported to `target/model-registry-aliases.json` for backend lookup.
 
 ---
 
