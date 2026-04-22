@@ -1,77 +1,68 @@
 ---
 title: "Rabit Contract"
-description: "The Solana program layer for pay-as-you-go charging, delegated backend authority, user vaults, and on-chain usage accounting."
+description: "The Solana program layer for delegated token charging, spending profiles, and immutable usage accounting."
 sidebarTitle: "Overview"
 ---
 
-Rabit Contract is the Solana program that lets the product charge for backend work in a wallet-native way.
+Rabit Contract is the Solana program that lets the product charge backend work in a wallet-native way without forcing users into a prepaid custody flow.
 
-Instead of keeping pricing and authorization fully off-chain, it introduces a contract-side payment and permission layer built around vaults, delegated signers, usage records, and fee accounting.
+Instead of moving funds into a contract-held balance first, the contract now combines:
+
+- a user-owned `SpendingProfile`
+- a delegated signer with expiry and spending limits
+- SPL token spending from the user's token account
+- immutable per-usage receipts
 
 ## Contract Address
 
 | Field | Value |
 | --- | --- |
 | Contract name | `rabit_contract` |
-| Devnet program address | `DLm4eybf935a2TUgiBTvENmZMCMV9fa63wvVP3n7HW21` |
+| Source program id | `Eq7vUXz6hdoYDXgmjNT4HbTtZb43QjenDhMLWdqVcpHT` |
+| Latest live devnet deployment | `Eq7vUXz6hdoYDXgmjNT4HbTtZb43QjenDhMLWdqVcpHT` |
 
 ## Devnet Address Breakdown
 
-### Singleton addresses
-
-These are the fixed addresses for the current devnet deployment.
+### Fixed addresses
 
 | Component | Address | Notes |
 | --- | --- | --- |
-| Program / contract address | `DLm4eybf935a2TUgiBTvENmZMCMV9fa63wvVP3n7HW21` | main program id |
+| Program / contract address | `Eq7vUXz6hdoYDXgmjNT4HbTtZb43QjenDhMLWdqVcpHT` | latest deployed devnet program |
 | Admin authority | `HfMHdkJuHztBm1y2JpPfZwauqesZQdmenQaHVL3J9wMP` | current config authority |
-| Backend authority | `HfMHdkJuHztBm1y2JpPfZwauqesZQdmenQaHVL3J9wMP` | current backend signer for delegated usage |
-| Platform config PDA | `F9buv5ScBe1iYHfZgv3NSGygSSUCzGmt1fjnHdp1Pbdz` | singleton config account |
-| Fee vault PDA | `FvN3wwxDm4oE7caFdHdBXmgHxNd8fSPcAgJmVcdnRURq` | protocol fee collection account |
+| Backend authority | `HfMHdkJuHztBm1y2JpPfZwauqesZQdmenQaHVL3J9wMP` | current delegated usage backend |
+| Platform config PDA | `DipGVm96xHJeqJZ6BhJHZEuRkWBptxnecWWHMcRrGAL2` | singleton policy account |
 
 ### Dynamic addresses
 
-These addresses are derived per user or per model, so there is no single permanent address for the whole contract.
-
 | Component | Address pattern | Why it is dynamic |
 | --- | --- | --- |
-| User vault | `PDA(["vault", owner])` | every user gets their own prepaid vault |
+| Spending profile | `PDA(["spending_profile", owner])` | every user gets their own charging policy and ledger account |
 | Delegated signer | `PDA(["delegated_signer", owner, delegate])` | every owner/delegate pair gets its own delegation account |
-| Usage record | `PDA(["ai_usage", vault, usage_sequence])` | every usage charge creates a new immutable receipt |
+| Usage record | `PDA(["ai_usage", spending_profile, usage_sequence])` | every usage charge creates a new immutable receipt |
 | Model registry | `PDA(["model_registry", model_id])` | every model has its own registry account |
 
 For the full current model registry list, see [/contract/model-registry-catalog](/contract/model-registry-catalog).
 
-## Why it matters
-
-Rabit Contract gives the product a simple charging model with real operational weight:
-
-- the user preloads SOL into a vault
-- the user delegates limited charging authority to the backend
-- the backend records one settlement-ready charge
-- the contract enforces the debit and stores an immutable receipt
-
-That makes the contract more than a payment gimmick. It shows how backend AI work and monitoring work can become a user-auditable on-chain charge path.
+The source tree and the latest successful live devnet deployment are now aligned on program id `Eq7vUXz6hdoYDXgmjNT4HbTtZb43QjenDhMLWdqVcpHT`.
 
 ## What it manages
 
 | Domain | Purpose |
 | --- | --- |
-| user vaults | hold prepaid SOL for AI usage |
+| spending profiles | store user payment mint and cumulative usage ledgers |
 | delegated signers | allow bounded backend authority with expiry and spending limits |
 | usage records | create an immutable on-chain log of each recorded charge |
 | platform config | stores admin authority, backend authority, fee settings, and pause state |
-| fee vault | accumulates platform fees |
-| model registry | stores optional model catalog metadata and pricing hints |
+| model registry | stores model catalog metadata and optional pricing hints |
 
 ## Why it exists
 
 | Problem | Contract-side answer |
 | --- | --- |
-| model and monitoring billing are usually opaque and off-chain | backend cost can be charged against an on-chain vault |
+| model and monitoring billing are opaque off-chain | backend cost can be charged against a user-owned SPL token account |
 | backend automation often needs dangerous long-lived authority | delegated signers let the user scope time and spend limits |
-| fee and markup accounting is hard to audit | fee flow becomes part of program state |
-| Solana apps keep rebuilding the same payment pattern | the contract turns it into a reusable primitive |
+| fee and markup accounting is hard to audit | every accepted charge becomes an immutable on-chain record |
+| model catalogs drift from billing logic | on-chain registry gives a shared anchor point for model metadata |
 
 ## Core flow
 
@@ -81,18 +72,18 @@ sequenceDiagram
     participant Backend
     participant Contract
 
-    User->>Contract: initialize_vault
-    User->>Contract: deposit_to_vault
+    User->>Contract: initialize_spending_profile
     User->>Contract: create_delegated_signer
+    User->>Contract: approve_spending_delegate
     Backend->>Contract: record_ai_usage_with_delegation(base_cost, service_cost, ...)
-    Contract-->>Backend: debit vault, credit fee vault, emit usage record
+    Contract-->>Backend: transfer token spend, update profile totals, emit usage record
 ```
 
 ## Key Product Value
 
 | Theme | Rabit's answer |
 | --- | --- |
-| wallet-native trust | users fund a dedicated prepaid vault |
+| wallet-native trust | users keep funds in their own token account |
 | backend automation without unlimited trust | delegated signer uses expiry and spending caps |
 | transparent charging | every accepted charge creates an immutable usage record |
 | extensible billing model | the contract supports both model cost and service cost |
@@ -101,8 +92,8 @@ sequenceDiagram
 
 | If you want... | Read |
 | --- | --- |
-| the real build and test workflow | [/getting-started/run/quickstart-contract](/getting-started/run/quickstart-contract) |
 | architecture and account model | [/contract/architecture](/contract/architecture) |
+| deeper technical spec | [/contract/architecture-spec](/contract/architecture-spec) |
 | how model cost and monitoring cost become one settlement call | [/contract/service-cost](/contract/service-cost) |
+| current registry ids and aliases | [/contract/model-registry-catalog](/contract/model-registry-catalog) |
 | instruction-level reference | [/contract/api-reference](/contract/api-reference) |
-| security analysis | [/contract/security](/contract/security) |

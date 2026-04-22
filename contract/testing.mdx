@@ -3,67 +3,32 @@ title: "Testing"
 description: "Test strategy and current coverage status for the Rabit Contract."
 ---
 
-This page tracks how the contract is validated in practice.
-
-The current suite is an off-chain integration suite built with Anchor TypeScript tests against a local validator. If you come from Solidity, the closest mental model is a Foundry integration suite that exercises the real program interface and checks resulting state transitions.
-
-## Test Strategy
-
-```mermaid
-flowchart LR
-    A[Happy path tests] --> D[Instruction confidence]
-    B[Authorization and state validation] --> D
-    C[Edge cases and accounting checks] --> D
-    D --> E[Pre-deployment readiness]
-```
+The current suite is an off-chain integration suite built with Anchor TypeScript tests against a local validator.
 
 ## Current Status
 
 | Signal | Current state |
 | --- | --- |
 | test harness | Anchor TypeScript integration tests |
-| current passing tests | `28` |
-| IDL generation | working |
-| direct usage coverage | implemented |
-| delegated usage coverage | implemented |
-| vault close coverage | implemented |
-| model registry admin coverage | implemented |
+| current passing tests | `4` for the new SpendingProfile + SPL charging path |
+| model registry alias handling | implemented and verified |
+| direct charging coverage | implemented |
+| delegated charging coverage | implemented |
 
-## Implemented Coverage Highlights
+## What is covered
 
-- [x] initialize and update platform config
-- [x] reject unauthorized admin actions
-- [x] reject fee and markup values above configured max
-- [x] deposit and withdraw vault funds
-- [x] reject over-withdrawal
-- [x] close empty vaults and reject closing non-zero vaults
-- [x] create, revoke, and close delegated signers
-- [x] reject invalid delegation duration
-- [x] reject closing active delegations
-- [x] record usage with user signature
-- [x] record usage with delegated backend signer
-- [x] reject delegated usage from unauthorized backend
-- [x] reject usage while paused
-- [x] register, update, and deactivate models
-- [x] claim protocol fees and reject unauthorized claims
+- [x] initialize platform config
+- [x] initialize spending profile
+- [x] register model metadata
+- [x] direct charging from user token account
+- [x] delegated charging from user token account
+- [x] unauthorized delegated charging rejection
 
-## What These Tests Prove
+## What this proves
 
 | Category | What it proves |
 | --- | --- |
-| Happy path | Valid instructions succeed and update state correctly |
-| Authorization | Non-owners and non-admins cannot cross trust boundaries |
-| State validation | Invalid inputs and invalid state combinations fail safely |
-| Accounting | Vault debits, fee movements, and usage records stay internally consistent |
-| Close flows | Delegations and vaults only close under safe conditions |
-
-## Remaining Gaps
-
-This suite is strong enough for iterative development and product validation, but it is not the same thing as a formal audited 100% line-and-branch coverage report.
-
-The main remaining gaps are:
-
-- explicit numeric coverage tooling for the Rust program itself
-- more adversarial cases around duplicate accounts and malformed account substitution
-- more model registry edge cases such as long strings and duplicate registrations
-- explicit event assertion coverage for every emitted event
+| happy path | valid instructions succeed and update state correctly |
+| authorization | wrong backend signer cannot charge |
+| accounting | SpendingProfile totals and receipts stay internally consistent |
+| token flow | real SPL token transfer path is wired into usage recording |

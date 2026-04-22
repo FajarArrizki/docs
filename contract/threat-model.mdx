@@ -1,57 +1,23 @@
 ---
 title: "Threat Model"
-description: "A clear, high-level view of what the Rabit Contract protects and where trust still exists."
+description: "A high-level view of what the Rabit Contract trusts and what it defends on-chain."
 ---
-
-This page is intentionally lightweight.
-
-The important question here is not “did we enumerate every theoretical edge case,” but “what does the contract trust, and what does it defend on-chain?”
 
 ## Main trust boundaries
 
 | Boundary | What Rabit trusts | What the contract enforces |
 | --- | --- | --- |
-| user funding | the user chooses how much SOL to preload | only the user can deposit, withdraw, and create delegations |
+| user payment source | the user chooses the payment mint and token account path | profile ownership and delegate approval are explicit |
 | delegated backend charging | the user chooses whether to trust the backend | delegation expiry and spending limit are enforced on-chain |
-| admin governance | the admin controls fees and pause state | admin powers are explicit and separated from user funds |
-| backend cost reporting | the backend reports `base_cost` and `service_cost` | the contract deterministically applies markup and protocol fee |
+| admin governance | the admin controls fees and pause state | admin powers are explicit and separated from user payment sources |
+| backend cost reporting | the backend reports `base_cost` and `service_cost` | the contract deterministically applies markup and platform fee |
 
 ## Core threats and mitigations
 
-```mermaid
-flowchart TD
-    A[Unauthorized user action] --> A1[Signer and PDA checks]
-    B[Delegation abuse] --> B1[expiry plus spending limit plus revoke]
-    C[Fee abuse] --> C1[max fee and markup caps]
-    D[Protocol incident] --> D1[pause usage path]
-    E[Account substitution] --> E1[PDA seed validation]
-```
-
 | Threat | Main mitigation |
 | --- | --- |
-| someone tries to spend from another user's vault | PDA derivation and owner signer checks |
+| someone tries to charge from another user's token account | PDA derivation, owner checks, and token account ownership validation |
 | backend keeps charging after delegation should be invalid | active flag, expiry checks, and user revocation |
 | backend tries to exceed delegated budget | cumulative spend limit is checked on every delegated charge |
 | admin tries to set extreme fees | hard-coded fee and markup caps |
 | protocol discovers abnormal behavior in production | pause gate blocks new usage recording |
-
-## Residual trust you should understand
-
-The contract does not eliminate all trust. It narrows trust to a smaller and more explicit shape.
-
-| Residual trust | Why it still exists |
-| --- | --- |
-| backend-reported cost values | the backend still tells the contract what the off-chain work cost |
-| admin authority | fee policy and pause control still belong to the admin role |
-| user delegation choices | a user can still choose a backend they should not have trusted |
-
-## Simple takeaway
-
-Rabit is secure in the sense that:
-
-- users keep direct control of deposits and withdrawals
-- backend automation is bounded instead of unlimited
-- every accepted charge creates an immutable usage receipt
-- protocol fee extraction is separated from user balances
-
-Rabit is not trustless in the sense that the backend still reports the off-chain cost inputs. The contract's job is to make charging bounded, explicit, and auditable.

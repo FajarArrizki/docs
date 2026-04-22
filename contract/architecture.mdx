@@ -1,32 +1,30 @@
 ---
 title: "Contract Architecture"
-description: "High-level system design, authority model, and value flow of the Rabit Contract."
+description: "High-level system design, authority model, and token-charging flow of the Rabit Contract."
 ---
 
-The Rabit contract is the on-chain payment and delegation layer behind Rabit. It stores prepaid user balances, enforces delegated spending limits, records usage, and separates user balances from protocol fees.
-
-This page explains the contract in the order a reviewer usually needs it: code structure, account model, charging flow, and trust boundaries.
+The Rabit contract is the on-chain payment and delegation layer behind Rabit. It stores per-user charging policy, enforces delegated spending limits, records usage, and separates protocol policy from user-owned token balances.
 
 ## Program Structure
 
-The contract now follows the standard Anchor workspace layout. The on-chain program lives in `programs/rabit-contract/src`.
+The program follows the standard Anchor workspace layout and lives in `programs/rabit-contract/src`.
 
 ```mermaid
 flowchart TD
-    A[programs/rabit-contract/src/lib.rs<br/>Program entry point]
+    A[lib.rs<br/>Program entry point]
     B[constants.rs<br/>Limits and shared constants]
     C[errors.rs<br/>Program error definitions]
     D[features/*/state.rs<br/>Persistent account types]
     E[features/*/instructions.rs<br/>Instruction handlers]
 
     D1[admin/state.rs<br/>Platform configuration]
-    D2[vault/state.rs<br/>User vault state]
+    D2[spending_profile/state.rs<br/>User charging profile]
     D3[delegation/state.rs<br/>Delegation state]
     D4[ai_usage/state.rs<br/>Immutable usage records]
     D5[model_registry/state.rs<br/>Model catalog metadata]
 
     E1[admin/instructions.rs<br/>Admin controls]
-    E2[vault/instructions.rs<br/>Deposit, withdrawal, close]
+    E2[spending_profile/instructions.rs<br/>Profile and token delegate controls]
     E3[delegation/instructions.rs<br/>Delegation lifecycle]
     E4[ai_usage/instructions.rs<br/>Usage charging and accounting]
     E5[model_registry/instructions.rs<br/>Catalog management]
@@ -35,59 +33,36 @@ flowchart TD
     A --> C
     A --> D
     A --> E
-    D --> D1
-    D --> D2
-    D --> D3
-    D --> D4
-    D --> D5
-    E --> E1
-    E --> E2
-    E --> E3
-    E --> E4
-    E --> E5
 ```
-
-| Area | Purpose | Why it matters |
-| --- | --- | --- |
-| `lib.rs` | Registers program entrypoints and routes instructions. | Defines the public on-chain surface. |
-| `features/*/state.rs` | Stores durable PDAs such as vaults and delegations. | Makes balances and permissions verifiable on-chain. |
-| `features/*/instructions.rs` | Implements validation, transfers, and bookkeeping. | Encodes the contract's trust model and business rules. |
-| `constants.rs` and `errors.rs` | Shared limits and explicit failure modes. | Keeps safety checks consistent across instructions. |
 
 ## Account Model
 
-| Account | PDA seeds | Stored data | Used for |
-| --- | --- | --- | --- |
-| `PlatformConfig` | `["config"]` | Authority, fee bps, pause status, backend authority | Global contract policy |
-| `Vault` | `["vault", owner]` | User balance, aggregate totals, usage sequence | Prepaid spending account |
-| `DelegatedSigner` | `["delegated_signer", owner, delegate]` | Expiry, spend cap, amount spent, active flag | Bounded backend spending authority |
-| `AiUsageRecord` | `["ai_usage", vault, usage_sequence]` | Base cost, service cost, markup, platform fee, usage metadata | Immutable accounting trail |
-| `ModelRegistry` | `["model_registry", model_id]` | Model metadata, optional pricing hint, usage counters | Optional on-chain model catalog |
+| Account | PDA seeds | Used for |
+| --- | --- | --- |
+| `PlatformConfig` | `PDA(["config"])` | global fee policy, backend authority, pause state |
+| `SpendingProfile` | `PDA(["spending_profile", owner])` | payment mint and cumulative charging ledger |
+| `DelegatedSigner` | `PDA(["delegated_signer", owner, delegate])` | bounded backend charging authority |
+| `AiUsageRecord` | `PDA(["ai_usage", spending_profile, usage_sequence])` | immutable receipt for one charge |
+| `ModelRegistry` | `PDA(["model_registry", model_id])` | model metadata and optional pricing hints |
 
 The important separation is:
 
-- `Vault` is the user's prepaid money
+- the user's funds stay in the user's token account
+- `SpendingProfile` is policy and ledger state, not custody
 - `DelegatedSigner` is temporary charging authority, not ownership
-- `PlatformConfig` defines system-wide rules
 - `AiUsageRecord` is the permanent receipt that explains why a charge happened
 
 ## Main User Flow
 
 ```mermaid
 flowchart LR
-    A[User wallet] --> B[initialize_vault]
-    B --> C[Vault PDA created]
-    C --> D[deposit_to_vault]
-    D --> E[Vault balance increases]
-    E --> F[create_delegated_signer]
-    F --> G[Delegated signer PDA created]
+    A[User wallet] --> B[initialize_spending_profile]
+    B --> C[Profile PDA created]
+    C --> D[create_delegated_signer]
+    D --> E[Delegated signer PDA created]
+    E --> F[approve_spending_delegate]
+    F --> G[token delegate approval is set]
 ```
-
-In product terms:
-
-- `initialize_vault` creates the user's on-chain balance container
-- `deposit_to_vault` converts wallet-held SOL into prepaid contract balance
-- `create_delegated_signer` gives the backend a time-limited, spend-limited charging path
 
 ## Delegated Charging Flow
 
@@ -98,78 +73,37 @@ flowchart TD
     C --> D[Combine base_cost and service_cost]
     D --> E[Apply markup]
     E --> F[Apply platform fee]
-    F --> G[Debit vault]
-    G --> H[Credit fee vault]
+    F --> G[Transfer SPL token from user token account]
+    G --> H[Credit recipient token account]
     H --> I[Increase delegated spent amount]
-    I --> J[Create immutable usage record]
+    I --> J[Update spending profile totals]
+    J --> K[Create immutable usage record]
 ```
 
-This is the core automation path. The backend never gets direct ownership of user funds. It only gets a narrow right to invoke one charging path, and that path always leaves an immutable accounting record behind.
+This path lets the backend automate usage charging without receiving direct ownership over the user's wallet.
 
 ## Charging Model
 
-The contract now expects the backend to pass two cost components:
+The contract expects two backend-supplied cost components:
 
 - `base_cost`: model/provider cost
 - `service_cost`: monitoring or other backend service cost
 
-Those are combined into one chargeable amount before markup and protocol fee are applied.
+Those are combined into one chargeable amount before markup and platform fee are applied.
 
-| Step | Formula | Example with `base_cost = 100`, `service_cost = 20`, and both fees at `5%` |
-| --- | --- | --- |
-| Chargeable cost | `base_cost + service_cost` | `100 + 20 = 120` |
-| Markup | `chargeable_cost * markup_bps / 10000` | `120 * 500 / 10000 = 6` |
-| Cost after markup | `chargeable_cost + markup_amount` | `120 + 6 = 126` |
-| Platform fee | `cost_after_markup * platform_fee_bps / 10000` | `126 * 500 / 10000 = 6` |
-| Total charged | `cost_after_markup + platform_fee_amount` | `126 + 6 = 132` |
-
-```mermaid
-flowchart LR
-    A[Base cost]
-    B[Service cost]
-    A --> C[Combine backend costs]
-    B --> C
-    C --> D[Apply backend markup]
-    D --> E[Apply platform fee]
-    E --> F[Charge total against user vault]
-```
-
-For a deeper explanation, read [/contract/service-cost](/contract/service-cost).
+| Step | Formula |
+| --- | --- |
+| chargeable cost | `base_cost + service_cost` |
+| markup | `chargeable_cost * markup_bps / 10000` |
+| platform fee | `(chargeable_cost + markup) * platform_fee_bps / 10000` |
+| total charged | `cost_after_markup + platform_fee` |
 
 ## Security Model
 
-The security model is based on role separation.
-
-```mermaid
-flowchart TD
-    A[Admin authority]
-    B[Backend delegate]
-    C[User]
-
-    A --> A1[Update fees]
-    A --> A2[Claim fee vault]
-    A --> A3[Pause or unpause usage]
-    A --> A4[Transfer authority]
-
-    B --> B1[Record usage only when delegation is active]
-
-    C --> C1[Deposit and withdraw]
-    C --> C2[Create delegation]
-    C --> C3[Revoke delegation]
-```
-
 | Protection | What it stops |
 | --- | --- |
-| PDA seeds include owner keys | Cross-user account substitution |
-| Delegated signer expiry and spend caps | Unlimited backend charging |
-| Separate fee vault PDA | Mixing protocol revenue with user balances |
-| Pause control | Continued charging during incidents |
-
-## Event System
-
-| Event | When emitted | Main consumer |
-| --- | --- | --- |
-| `AiUsageRecorded` | Every successful usage charge | Off-chain analytics and billing reconciliation |
-| `VaultClosed` | User closes empty vault | Monitoring and cleanup |
-| `DelegationClosed` | Delegation is closed after revoke or expiry | Backend session cleanup |
-| Fee and authority update events | Admin updates governance state | Operations and auditing |
+| PDA seeds include owner keys | cross-user account substitution |
+| delegated signer expiry and spend caps | unlimited backend charging |
+| SPL delegate approval is explicit | hidden token spending authority |
+| pause control | continued charging during incidents |
+| immutable usage records | silent or opaque billing changes |

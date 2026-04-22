@@ -3,7 +3,7 @@ title: "Architecture Specification"
 description: "A concise technical specification of the Rabit Contract's current on-chain model."
 ---
 
-This page is the technical companion to the higher-level architecture page. It keeps the current implementation easy to reference without turning into an internal audit notebook.
+This page is the technical companion to the higher-level architecture page.
 
 ## Program Crate
 
@@ -13,7 +13,7 @@ The on-chain program lives at:
 programs/rabit-contract/
 ```
 
-The main source layout is:
+Main source layout:
 
 ```text
 src/
@@ -22,7 +22,7 @@ src/
 ├── errors.rs
 └── features/
     ├── admin/
-    ├── vault/
+    ├── spending_profile/
     ├── delegation/
     ├── ai_usage/
     └── model_registry/
@@ -32,25 +32,40 @@ src/
 
 | Account | PDA seeds | Main fields |
 | --- | --- | --- |
-| `PlatformConfig` | `["config"]` | authority, backend_authority, fee policy, pause state, fee vault pubkey |
-| `Vault` | `["vault", owner]` | owner, balance, totals, usage sequence |
+| `PlatformConfig` | `["config"]` | authority, backend authority, fee policy, pause state |
+| `SpendingProfile` | `["spending_profile", owner]` | payment mint, total charged, total model cost, total service cost, total platform fee, total delegated usage, usage sequence |
 | `DelegatedSigner` | `["delegated_signer", owner, delegate]` | delegated pubkey, expiry, spending limit, spent amount, active flag |
 | `ModelRegistry` | `["model_registry", model_id]` | provider, pricing hint, features, active flag, usage counters |
-| `AiUsageRecord` | `["ai_usage", vault, usage_sequence]` | model id, base cost, service cost, markup, platform fee, total charged |
+| `AiUsageRecord` | `["ai_usage", spending_profile, usage_sequence]` | model id, base cost, service cost, markup, platform fee, total charged |
 
 ## Instruction Surface
 
 | Domain | Instructions |
 | --- | --- |
 | Admin | `initialize_config`, `update_platform_fee`, `update_default_markup`, `update_authority`, `update_backend_authority`, `toggle_pause`, `claim_fees` |
-| Vault | `initialize_vault`, `deposit_to_vault`, `withdraw_from_vault`, `close_vault` |
+| Spending profile | `initialize_spending_profile`, `approve_spending_delegate`, `revoke_spending_delegate`, `close_spending_profile` |
 | Delegation | `create_delegated_signer`, `revoke_delegated_signer`, `close_delegated_signer` |
-| Model Registry | `register_model`, `update_model`, `deactivate_model` |
+| Model registry | `register_model`, `update_model`, `deactivate_model` |
 | Usage | `record_ai_usage`, `record_ai_usage_with_delegation` |
 
-## Charging Inputs
+## Payment Path
 
-The backend submits two cost inputs:
+The contract charges from the user's SPL token account, not from a contract-held prepaid balance.
+
+```mermaid
+flowchart LR
+    A[User token account] --> B[record_ai_usage or delegated variant]
+    B --> C[Authority-owned fee_recipient_token_account]
+    B --> D[SpendingProfile totals updated]
+    B --> E[AiUsageRecord persisted]
+```
+
+The current implementation has two separate collection paths:
+
+- SPL charging writes into a runtime `fee_recipient_token_account` owned by `config.authority`
+- `claim_fees` only withdraws lamports already held by the `fee_recipient` PDA
+
+## Charging Inputs
 
 | Field | Meaning |
 | --- | --- |
@@ -67,22 +82,7 @@ platform_fee      = cost_after_markup * platform_fee_bps / 10000
 total_charged     = cost_after_markup + platform_fee
 ```
 
-## Fee Movement
-
-```mermaid
-flowchart LR
-    A[User vault] --> B[Combined charge recorded]
-    B --> C[Protocol fee extracted to fee vault]
-    B --> D[Usage receipt persisted]
-    C --> E[Admin can claim fee vault later]
-```
-
-Important detail:
-
-- only the platform fee is extracted into `fee_vault`
-- model cost and service cost are reflected in the charge, but remain part of the backend settlement story off-chain
-
-## Delegation Rules
+## Delegated Charging Rules
 
 Delegated usage is accepted only when all of these are true:
 
@@ -90,23 +90,15 @@ Delegated usage is accepted only when all of these are true:
 - delegated signer is active
 - delegated signer is not expired
 - delegated signer can still spend `total_charged`
-- vault balance covers the charge
-
-This gives Rabit a practical automation path without giving the backend direct withdrawal rights over user vaults.
+- user token account mint matches the spending profile payment mint
+- delegated token approval already exists on the user's token account
 
 ## Current Implementation Notes
 
 | Area | Current behavior |
 | --- | --- |
-| IDL generation | working |
-| test harness | off-chain Anchor integration tests |
-| current passing tests | `28` |
-| model registry role | optional on-chain catalog and pricing hint source |
-| charging path | supports both direct user-signature and delegated backend-signature usage |
-
-## Read This With
-
-- [/contract/index](/contract/index)
-- [/contract/architecture](/contract/architecture)
-- [/contract/service-cost](/contract/service-cost)
-- [/contract/testing](/contract/testing)
+| payment asset | SPL token selected by the user profile |
+| charging authority | direct user signer or delegated signer PDA |
+| ledger account | `SpendingProfile` |
+| receipt account | `AiUsageRecord` |
+| model ids longer than 32 bytes | seeded with deterministic on-chain alias |

@@ -25,13 +25,6 @@ For those models, Rabit uses a deterministic shortened alias that:
 - keeps the provider prefix
 - adds a short hash suffix for uniqueness
 
-Backend-side lookup can use:
-
-- alias map file: `target/model-registry-aliases.json`
-- reusable helper: `scripts/model-registry-helper.js`
-
-That allows off-chain code to translate cleanly between provider ids and on-chain registry ids.
-
 ## Catalog
 
 | No | Model Name | Source Model ID | On-chain Registry ID | Provider | Aliased |

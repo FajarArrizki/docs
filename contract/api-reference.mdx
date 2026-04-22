@@ -8,226 +8,127 @@ description: "Instruction, account, event, and error overview for the Rabit Cont
 ### initialize_config
 Initialize platform configuration.
 
-**Parameters:**
-- `platform_fee_bps: u16` - Platform fee (max 2000 = 20%)
-- `default_markup_bps: u16` - Default markup (max 5000 = 50%)
-- `backend_authority: Pubkey` - Backend wallet address
-
-**Accounts:**
-- `config` - PlatformConfig PDA (init)
-- `fee_vault` - Fee vault PDA
-- `authority` - Admin signer
-- `system_program` - System program
-
-**Errors:**
-- `InvalidFeePercentage` - Fee exceeds maximum
-- `InvalidMarkupPercentage` - Markup exceeds maximum
-
----
-
 ### update_platform_fee
 Update platform fee percentage.
 
-**Parameters:**
-- `new_platform_fee_bps: u16` - New fee (max 2000)
+### update_default_markup
+Update default markup percentage.
 
-**Accounts:**
-- `config` - PlatformConfig PDA
-- `authority` - Admin signer
+### update_authority
+Transfer admin authority.
 
-**Errors:**
-- `NotAuthorized` - Not the authority
-- `InvalidFeePercentage` - Fee exceeds maximum
-
----
-
-### claim_fees
-Claim collected platform fees.
-
-**Parameters:**
-- `amount: u64` - Amount to claim in lamports
-
-**Accounts:**
-- `config` - PlatformConfig PDA
-- `fee_vault` - Fee vault PDA
-- `authority` - Admin signer
-- `system_program` - System program
-
-**Errors:**
-- `NotAuthorized` - Not the authority
-- `InsufficientFeeBalance` - Not enough fees collected
-
----
+### update_backend_authority
+Update backend charging authority.
 
 ### toggle_pause
-Emergency pause/unpause platform.
+Pause or unpause charging.
+
+### claim_fees
+Claim lamports held by the `fee_recipient` PDA.
+
+This is separate from the SPL token charging flow, which sends usage charges into a runtime-supplied `fee_recipient_token_account` owned by `config.authority`.
+
+## Spending Profile Instructions
+
+### initialize_spending_profile
+Create the user's spending profile.
 
 **Accounts:**
-- `config` - PlatformConfig PDA
-- `authority` - Admin signer
-
-**Errors:**
-- `NotAuthorized` - Not the authority
-
----
-
-## Vault Instructions
-
-### initialize_vault
-Create user's vault account.
-
-**Accounts:**
-- `vault` - Vault PDA (init)
+- `spending_profile` - SpendingProfile PDA (init)
+- `payment_mint` - SPL token mint used for charging
 - `owner` - User signer
 - `system_program` - System program
 
----
-
-### deposit_to_vault
-Deposit SOL to vault.
-
-**Parameters:**
-- `amount: u64` - Amount in lamports
+### approve_spending_delegate
+Approve the delegated signer PDA as token spending delegate.
 
 **Accounts:**
-- `vault` - Vault PDA
+- `spending_profile` - SpendingProfile PDA
+- `delegated_signer` - DelegatedSigner PDA
+- `user_token_account` - User SPL token account
 - `owner` - User signer
-- `system_program` - System program
+- `token_program` - SPL token program
 
-**Errors:**
-- `InvalidUsageAmount` - Amount is zero
-- `Unauthorized` - Not vault owner
+### revoke_spending_delegate
+Revoke delegated token spending approval.
 
----
-
-### withdraw_from_vault
-Withdraw SOL from vault.
-
-**Parameters:**
-- `amount: u64` - Amount in lamports
+### close_spending_profile
+Close the user's spending profile.
 
 **Accounts:**
-- `vault` - Vault PDA
+- `spending_profile` - SpendingProfile PDA
+- `user_token_account` - User SPL token account, which must no longer have a delegate approval
 - `owner` - User signer
-- `system_program` - System program
-
-**Errors:**
-- `InvalidUsageAmount` - Amount is zero
-- `InsufficientVaultBalance` - Not enough balance
-- `Unauthorized` - Not vault owner
-
----
 
 ## Delegated Signer Instructions
 
 ### create_delegated_signer
 Create delegated signer for backend.
 
-**Parameters:**
-- `expiry_duration: i64` - Duration in seconds (60 to 2592000)
-- `spending_limit: u64` - Max spending in lamports
-
-**Accounts:**
-- `delegated_signer` - DelegatedSigner PDA (init)
-- `owner` - User signer
-- `delegate` - Backend pubkey
-- `system_program` - System program
-
-**Errors:**
-- `InvalidDelegationDuration` - Duration out of range
-- `SpendingLimitExceeded` - Limit too high
-
----
-
 ### revoke_delegated_signer
 Revoke delegated signer.
 
-**Accounts:**
-- `delegated_signer` - DelegatedSigner PDA
-- `owner` - User signer
+### close_delegated_signer
+Close a revoked or expired delegated signer.
 
-**Errors:**
-- `Unauthorized` - Not the owner
-- `DelegatedSignerAlreadyRevoked` - Already revoked
+### register_model
+Create a model registry entry as `config.authority`.
 
----
+### update_model
+Update a model registry entry as `config.authority`.
+
+### deactivate_model
+Deactivate a model registry entry as `config.authority`.
 
 ## AI Usage Instructions
 
 ### record_ai_usage
-Record AI usage (user signs).
+Record AI usage with direct user signature.
 
-**Parameters:**
-- `model_id: String` - Model identifier
-- `base_cost: u64` - Model cost in lamports
-- `service_cost: u64` - Extra backend service cost in lamports
-- `usage_type: String` - Type: "text", "image", "audio", "video"
-- `tokens_used: u64` - Token count for registry stats and optional pricing checks
-- `markup_bps: Option<u16>` - Optional markup override
+Accepted `usage_type`: `text`, `image`, `audio`, `video`.
 
-**Accounts:**
-- `usage_record` - AiUsageRecord PDA (init)
-- `vault` - User's Vault PDA
-- `config` - PlatformConfig PDA
-- `fee_vault` - Fee vault PDA
-- `owner` - Vault owner
-- `user` - User signer
-- `system_program` - System program
-
-**Errors:**
-- `Unauthorized` - Platform paused or not owner
-- `InvalidUsageAmount` - Amount is zero
-- `InsufficientVaultBalance` - Not enough balance
-- `InvalidMarkupPercentage` - Markup too high
-
----
+**Main accounts:**
+- `usage_record`
+- `spending_profile`
+- `config`
+- `user_token_account`
+- `fee_recipient_token_account`
+- `payment_mint`
+- `model_registry` (optional)
+- `user`
+- `token_program`
+- `system_program`
 
 ### record_ai_usage_with_delegation
-Record AI usage (backend signs).
+Record AI usage with backend signature and delegated token spend.
 
-**Parameters:**
-- `model_id: String` - Model identifier
-- `base_cost: u64` - Model cost in lamports
-- `service_cost: u64` - Extra backend service cost in lamports
-- `usage_type: String` - Type: "text", "image", "audio", "video"
-- `tokens_used: u64` - Token count for registry stats and optional pricing checks
-- `markup_bps: Option<u16>` - Optional markup override
+Accepted `usage_type`: `text`, `image`, `audio`, `video`.
 
-**Accounts:**
-- `usage_record` - AiUsageRecord PDA (init)
-- `vault` - User's Vault PDA
-- `delegated_signer` - DelegatedSigner PDA
-- `config` - PlatformConfig PDA
-- `fee_vault` - Fee vault PDA
-- `delegate` - Backend signer
-- `system_program` - System program
-
-**Errors:**
-- `Unauthorized` - Platform paused
-- `DelegatedSignerNotActive` - Signer revoked
-- `DelegatedSignerExpired` - Signer expired
-- `SpendingLimitExceeded` - Over limit
-- `InvalidUsageAmount` - Amount is zero
-- `InsufficientVaultBalance` - Not enough balance
-- `InvalidMarkupPercentage` - Markup too high
-
----
+**Main accounts:**
+- `usage_record`
+- `spending_profile`
+- `delegated_signer`
+- `config`
+- `user_token_account`
+- `fee_recipient_token_account`
+- `payment_mint`
+- `model_registry` (optional)
+- `delegate`
+- `token_program`
+- `system_program`
 
 ## Events
 
 ### AiUsageRecorded
-Emitted when AI usage is recorded.
 
-**Fields:**
-- `user: Pubkey` - User account
-- `vault: Pubkey` - Vault account
-- `delegated_signer: Option<Pubkey>` - Delegation used
-- `usage_type: String` - Usage type
-- `base_cost: u64` - Model cost
-- `service_cost: u64` - Extra backend service cost
-- `markup_bps: u16` - Markup percentage
-- `markup_amount: u64` - Markup amount
-- `platform_fee_bps: u16` - Platform fee percentage
-- `platform_fee_amount: u64` - Platform fee amount
-- `total_charged: u64` - Total charged
-- `timestamp: i64` - Unix timestamp
+| Field | Meaning |
+| --- | --- |
+| `user` | end user |
+| `spending_profile` | charging profile used |
+| `delegated_signer` | delegation used, if any |
+| `model_id` | model used |
+| `base_cost` | model/provider cost |
+| `service_cost` | monitoring or backend service cost |
+| `markup_amount` | backend markup |
+| `platform_fee_amount` | protocol fee |
+| `total_charged` | final token amount charged |

@@ -1,9 +1,9 @@
 ---
 title: "Development"
-description: "Current repository structure, current testing status, and recent implementation notes for the Rabit Contract."
+description: "Current repository structure and implementation notes for the Rabit Contract."
 ---
 
-This page reflects the current contract repo rather than an old planning snapshot.
+This page reflects the current contract repo rather than old planning notes.
 
 ## Current Repo Shape
 
@@ -19,54 +19,30 @@ rabit-contract/
 │           ├── constants.rs
 │           ├── errors.rs
 │           └── features/
-├── tests/                    # Anchor TypeScript integration tests
-├── scripts/                  # deploy and model registry tooling
-└── .doch/                    # documentation workspace
+│               ├── admin/
+│               ├── spending_profile/
+│               ├── delegation/
+│               ├── ai_usage/
+│               └── model_registry/
+├── tests/
+├── scripts/
+└── .doch/
 ```
 
-## Current Testing State
+## Current Implementation Notes
 
 | Area | Current state |
 | --- | --- |
-| test style | off-chain Anchor integration tests |
-| current passing tests | `28` |
-| IDL generation | working |
-| vault flow tests | implemented |
-| delegation flow tests | implemented |
-| usage charging tests | implemented |
-| admin and model registry tests | implemented |
+| charging asset | SPL token selected by the user profile |
+| per-user ledger | `SpendingProfile` |
+| delegated execution | `DelegatedSigner` PDA |
+| immutable receipt | `AiUsageRecord` |
+| model ids longer than 32 bytes | seeded with deterministic on-chain alias |
 
-## Current Charging Model
+## Useful scripts
 
-The current implementation charges a combined backend cost on-chain:
-
-- `base_cost`: model/provider cost
-- `service_cost`: monitoring or backend service cost
-
-The contract combines them into one chargeable amount, then deterministically applies:
-
-1. backend markup
-2. platform fee
-3. vault debit and usage receipt creation
-
-This lets the product explain one settlement amount to the user while still preserving the split inside `AiUsageRecord`.
-
-## Tooling Notes
-
-| Tool | Current use |
+| Script | Purpose |
 | --- | --- |
-| `anchor build` | build program artifacts from the workspace |
-| `anchor idl build` | explicit IDL generation when needed |
-| `anchor test` | local-validator integration suite |
-| `scripts/seed-model-registry.js` | seed model catalog accounts |
-| `scripts/sync-model-registry.js` | sync on-chain model catalog against JSON source |
-
-## Documentation Notes
-
-The most important contract pages for understanding the current product surface are:
-
-- `/contract/index`
-- `/contract/architecture`
-- `/contract/service-cost`
-- `/contract/api-reference`
-- `/getting-started/run/quickstart-contract`
+| `scripts/model-registry-helper.js` | resolve source model ids to on-chain ids |
+| `scripts/verify-model-registry.js` | verify seeded registry accounts exist on-chain |
+| `scripts/generate-model-registry-doc.js` | regenerate docs catalog page |
